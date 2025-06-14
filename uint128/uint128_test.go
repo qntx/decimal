@@ -14,61 +14,127 @@ import (
 func randUint128() Uint128 {
 	randBuf := make([]byte, 16)
 	rand.Read(randBuf)
-	return FromBytes(randBuf)
+	return NewFromBytes(randBuf)
 }
 
-func TestUint128(t *testing.T) {
-	// test non-arithmetic methods
-	for i := 0; i < 1000; i++ {
-		x, y := randUint128(), randUint128()
-		if i%3 == 0 {
-			x = x.Rsh(64)
-		} else if i%7 == 0 {
-			x = x.Lsh(64)
-		}
-
-		if FromBig(x.Big()) != x {
-			t.Fatal("FromBig is not the inverse of Big for", x)
-		}
-
-		b := make([]byte, 16)
-		x.PutBytes(b)
-		if FromBytes(b) != x {
-			t.Fatal("FromBytes is not the inverse of PutBytes for", x)
-		}
-
-		if !x.Equals(x) {
-			t.Fatalf("%v does not equal itself", x.Lo)
-		}
-		if !From64(x.Lo).Equals64(x.Lo) {
-			t.Fatalf("%v does not equal itself", x.Lo)
-		}
-
-		if x.Cmp(y) != x.Big().Cmp(y.Big()) {
-			t.Fatalf("mismatch: cmp(%v,%v) should equal %v, got %v", x, y, x.Big().Cmp(y.Big()), x.Cmp(y))
-		} else if x.Cmp(x) != 0 {
-			t.Fatalf("%v does not equal itself", x)
-		}
-
-		if x.Cmp64(y.Lo) != x.Big().Cmp(From64(y.Lo).Big()) {
-			t.Fatalf("mismatch: cmp64(%v,%v) should equal %v, got %v", x, y.Lo, x.Big().Cmp(From64(y.Lo).Big()), x.Cmp64(y.Lo))
-		} else if From64(x.Lo).Cmp64(x.Lo) != 0 {
-			t.Fatalf("%v does not equal itself", x.Lo)
-		}
+// testNonArithmeticMethods tests non-arithmetic operations like conversions and comparisons
+func TestNonArithmeticMethods(t *testing.T) {
+	const iterations = 1000
+	tests := []struct {
+		name     string
+		modifier func(Uint128) Uint128
+	}{
+		{"Unmodified", func(x Uint128) Uint128 { return x }},
+		{"RightShift64", func(x Uint128) Uint128 { return x.Rsh(64) }},
+		{"LeftShift64", func(x Uint128) Uint128 { return x.Lsh(64) }},
 	}
 
-	// Check FromBig panics
-	checkPanic := func(fn func(), msg string) {
-		defer func() {
-			r := recover()
-			if s, ok := r.(string); !ok || s != msg {
-				t.Errorf("expected %q, got %q", msg, r)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for i := range iterations {
+				x, y := randUint128(), randUint128()
+				if i%3 == 0 && tt.name == "RightShift64" {
+					x = tt.modifier(x)
+				} else if i%7 == 0 && tt.name == "LeftShift64" {
+					x = tt.modifier(x)
+				} else if tt.name == "Unmodified" {
+					x = tt.modifier(x)
+				}
+
+				// Test Big/NewFromBig roundtrip
+				assertBigRoundtrip(t, x)
+				// Test PutBytes/NewFromBytes roundtrip
+				assertBytesRoundtrip(t, x)
+				// Test equality checks
+				assertSelfEquality(t, x)
+				// Test comparisons
+				assertComparisons(t, x, y)
 			}
-		}()
-		fn()
+		})
 	}
-	checkPanic(func() { _ = FromBig(big.NewInt(-1)) }, "value cannot be negative")
-	checkPanic(func() { _ = FromBig(new(big.Int).Lsh(big.NewInt(1), 129)) }, "value overflows Uint128")
+}
+
+// TestFromBigErrors tests error cases for NewFromBig
+func TestFromBigErrors(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     *big.Int
+		wantError error
+	}{
+		{
+			name:      "NegativeValue",
+			input:     big.NewInt(-1),
+			wantError: ErrNegativeValue,
+		},
+		{
+			name:      "ValueOverflow",
+			input:     new(big.Int).Lsh(big.NewInt(1), 129),
+			wantError: ErrValueOverflow,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewFromBigInt(tt.input)
+			if err != tt.wantError {
+				t.Errorf("NewFromBigInt(%v) error = %v, want %v", tt.input, err, tt.wantError)
+			}
+		})
+	}
+}
+
+// assertBigRoundtrip verifies that Big and NewFromBig are inverses
+func assertBigRoundtrip(t *testing.T, x Uint128) {
+	t.Helper()
+	u, err := NewFromBigInt(x.Big())
+	if err != nil {
+		t.Errorf("NewFromBigInt(%v) failed: %v", x, err)
+		return
+	}
+	if u != x {
+		t.Errorf("NewFromBig(%v) = %v, want %v", x, u, x)
+	}
+}
+
+// assertBytesRoundtrip verifies that PutBytes and NewFromBytes are inverses
+func assertBytesRoundtrip(t *testing.T, x Uint128) {
+	t.Helper()
+	b := make([]byte, 16)
+	x.PutBytes(b)
+	if got := NewFromBytes(b); got != x {
+		t.Errorf("NewFromBytes(PutBytes(%v)) = %v, want %v", x, got, x)
+	}
+}
+
+// assertSelfEquality verifies that a value equals itself
+func assertSelfEquality(t *testing.T, x Uint128) {
+	t.Helper()
+	if !x.Equals(x) {
+		t.Errorf("%v does not equal itself", x)
+	}
+	if !NewFromUint64(x.lo).Equals64(x.lo) {
+		t.Errorf("%v (lo) does not equal itself", x.lo)
+	}
+}
+
+// assertComparisons verifies comparison operations
+func assertComparisons(t *testing.T, x, y Uint128) {
+	t.Helper()
+	// Compare with another Uint128
+	if got := x.Cmp(y); got != x.Big().Cmp(y.Big()) {
+		t.Errorf("Cmp(%v, %v) = %v, want %v", x, y, got, x.Big().Cmp(y.Big()))
+	}
+	if x.Cmp(x) != 0 {
+		t.Errorf("%v does not equal itself in Cmp", x)
+	}
+
+	// Compare with uint64
+	if got := x.Cmp64(y.lo); got != x.Big().Cmp(NewFromUint64(y.lo).Big()) {
+		t.Errorf("Cmp64(%v, %v) = %v, want %v", x, y.lo, got, x.Big().Cmp(NewFromUint64(y.lo).Big()))
+	}
+	if NewFromUint64(x.lo).Cmp64(x.lo) != 0 {
+		t.Errorf("%v (lo) does not equal itself in Cmp64", x.lo)
+	}
 }
 
 func TestArithmetic(t *testing.T) {
@@ -129,7 +195,7 @@ func TestArithmetic(t *testing.T) {
 	}
 	checkBinOp64X := func(x Uint128, op string, y uint64, fn func(x Uint128, y uint64) Uint128, fnb func(z, x, y *big.Int) *big.Int) {
 		t.Helper()
-		xb, yb := x.Big(), From64(y).Big()
+		xb, yb := x.Big(), NewFromUint64(y).Big()
 		rb := fnb(new(big.Int), xb, yb)
 		defer func() {
 			if r := recover(); r != nil {
@@ -147,7 +213,7 @@ func TestArithmetic(t *testing.T) {
 	}
 	checkBinOp64 := func(x Uint128, op string, y uint64, fn func(x Uint128, y uint64) Uint128, fnb func(z, x, y *big.Int) *big.Int) {
 		t.Helper()
-		xb, yb := x.Big(), From64(y).Big()
+		xb, yb := x.Big(), NewFromUint64(y).Big()
 		r := fn(x, y)
 		rb := mod128(fnb(new(big.Int), xb, yb))
 		if r.Big().Cmp(rb) != 0 {
@@ -155,16 +221,16 @@ func TestArithmetic(t *testing.T) {
 		}
 	}
 	for i := 0; i < 1000; i++ {
-		x, y, z := randUint128(), randUint128(), uint(randUint128().Lo&0xFF)
-		checkBinOpX(x, "[+]", y, Uint128.Add, (*big.Int).Add)
-		checkBinOpX(x, "[-]", y, Uint128.Sub, (*big.Int).Sub)
-		checkBinOpX(x, "[*]", y, Uint128.Mul, (*big.Int).Mul)
+		x, y, z := randUint128(), randUint128(), uint(randUint128().lo&0xFF)
+		checkBinOpX(x, "[+]", y, Uint128.MustAdd, (*big.Int).Add)
+		checkBinOpX(x, "[-]", y, Uint128.MustSub, (*big.Int).Sub)
+		checkBinOpX(x, "[*]", y, Uint128.MustMul, (*big.Int).Mul)
 		checkBinOp(x, "+", y, Uint128.AddWrap, (*big.Int).Add)
 		checkBinOp(x, "-", y, Uint128.SubWrap, (*big.Int).Sub)
 		checkBinOp(x, "*", y, Uint128.MulWrap, (*big.Int).Mul)
 		if !y.IsZero() {
-			checkBinOp(x, "/", y, Uint128.Div, (*big.Int).Div)
-			checkBinOp(x, "%", y, Uint128.Mod, (*big.Int).Mod)
+			checkBinOp(x, "/", y, Uint128.MustDiv, (*big.Int).Div)
+			checkBinOp(x, "%", y, Uint128.MustMod, (*big.Int).Mod)
 		}
 		checkBinOp(x, "&", y, Uint128.And, (*big.Int).And)
 		checkBinOp(x, "|", y, Uint128.Or, (*big.Int).Or)
@@ -173,17 +239,17 @@ func TestArithmetic(t *testing.T) {
 		checkShiftOp(x, ">>", z, Uint128.Rsh, (*big.Int).Rsh)
 
 		// check 64-bit variants
-		y64 := y.Lo
-		checkBinOp64X(x, "[+]", y64, Uint128.Add64, (*big.Int).Add)
-		checkBinOp64X(x, "[-]", y64, Uint128.Sub64, (*big.Int).Sub)
-		checkBinOp64X(x, "[*]", y64, Uint128.Mul64, (*big.Int).Mul)
+		y64 := y.lo
+		checkBinOp64X(x, "[+]", y64, Uint128.MustAdd64, (*big.Int).Add)
+		checkBinOp64X(x, "[-]", y64, Uint128.MustSub64, (*big.Int).Sub)
+		checkBinOp64X(x, "[*]", y64, Uint128.MustMul64, (*big.Int).Mul)
 		checkBinOp64(x, "+", y64, Uint128.AddWrap64, (*big.Int).Add)
 		checkBinOp64(x, "-", y64, Uint128.SubWrap64, (*big.Int).Sub)
 		checkBinOp64(x, "*", y64, Uint128.MulWrap64, (*big.Int).Mul)
 		if y64 != 0 {
 			checkBinOp64(x, "/", y64, Uint128.Div64, (*big.Int).Div)
 			modfn := func(x Uint128, y uint64) Uint128 {
-				return From64(x.Mod64(y))
+				return NewFromUint64(x.Mod64(y))
 			}
 			checkBinOp64(x, "%", y64, modfn, (*big.Int).Mod)
 		}
@@ -196,26 +262,52 @@ func TestArithmetic(t *testing.T) {
 func TestOverflowAndUnderflow(t *testing.T) {
 	x := Max
 	y := New(10, 10)
-	z := From64(10)
-	checkPanic := func(fn func(), msg string) {
-		defer func() {
-			r := recover()
-			if s, ok := r.(string); !ok || s != msg {
-				t.Errorf("expected %q, got %q", msg, r)
-			}
-		}()
-		fn()
+	z := NewFromUint64(10)
+
+	var err error
+
+	// Test Add overflow
+	_, err = x.Add(y) // max.Add(New(10,10))
+	if err != ErrOverflow {
+		t.Errorf("expected ErrOverflow, got %v", err)
+	}
+	_, err = x.Add64(10) // max.Add64(10)
+	if err != ErrOverflow {
+		t.Errorf("expected ErrOverflow, got %v", err)
 	}
 
-	// should panic
-	checkPanic(func() { _ = x.Add(y) }, "overflow")
-	checkPanic(func() { _ = x.Add64(10) }, "overflow")
-	checkPanic(func() { _ = y.Sub(x) }, "underflow")
-	checkPanic(func() { _ = z.Sub64(math.MaxInt64) }, "underflow")
-	checkPanic(func() { _ = x.Mul(y) }, "overflow")
-	checkPanic(func() { _ = New(0, 10).Mul(New(0, 10)) }, "overflow")
-	checkPanic(func() { _ = New(0, 1).Mul(New(0, 1)) }, "overflow")
-	checkPanic(func() { _ = x.Mul64(math.MaxInt64) }, "overflow")
+	// Test Sub underflow
+	_, err = y.Sub(x) // New(10,10).Sub(max)
+	if err != ErrUnderflow {
+		t.Errorf("expected ErrUnderflow, got %v", err)
+	}
+	_, err = z.Sub64(math.MaxUint64) // NewFrom64(10).Sub64(MaxUint64) - Note: math.MaxInt64 might not be the correct value to trigger underflow here depending on z's value.
+	// Using math.MaxUint64 to ensure underflow if z.Lo is small.
+	if err != ErrUnderflow {
+		t.Errorf("expected ErrUnderflow, got %v", err)
+	}
+
+	// Test Mul overflow
+	_, err = x.Mul(y) // max.Mul(New(10,10))
+	if err != ErrOverflow {
+		t.Errorf("expected ErrOverflow, got %v", err)
+	}
+	_, err = New(0, 10).Mul(New(0, 10)) // New(0,10).Mul(New(0,10))
+	if err != ErrOverflow {
+		t.Errorf("expected ErrOverflow, got %v", err)
+	}
+	// This specific case might not overflow if implemented correctly as 2^64 * 2^64 = 2^128 which is Max + 1, so it should wrap or error.
+	// However, the original test expected an overflow for New(0, 1).Mul(New(0, 1)), which means multiplying 2^64 by 2^64.
+	// A Uint128 can hold up to 2^128 - 1.  (2^64) * (2^64) = 2^128. This value is exactly one greater than Max.
+	// So, this should indeed result in an overflow.
+	_, err = New(0, 1).Mul(New(0, 1))
+	if err != ErrOverflow {
+		t.Errorf("expected ErrOverflow for New(0,1).Mul(New(0,1)), got %v", err)
+	}
+	_, err = x.Mul64(math.MaxUint64) // max.Mul64(MaxUint64)
+	if err != ErrOverflow {
+		t.Errorf("expected ErrOverflow, got %v", err)
+	}
 }
 
 func TestLeadingZeros(t *testing.T) {
@@ -290,7 +382,7 @@ func TestString(t *testing.T) {
 		if x.String() != x.Big().String() {
 			t.Fatalf("mismatch:\n%v !=\n%v", x.String(), x.Big().String())
 		}
-		y, err := FromString(x.String())
+		y, err := Parse(x.String())
 		if err != nil {
 			t.Fatal(err)
 		} else if !y.Equals(x) {
@@ -306,164 +398,19 @@ func TestString(t *testing.T) {
 		t.Fatalf(`Max.String() should be "0", got %q`, Max.String())
 	}
 	// Test parsing invalid strings
-	if _, err := FromString("-1"); err == nil {
+	if _, err := Parse("-1"); err == nil {
 		t.Fatal("expected error when parsing -1")
 	}
-	if _, err := FromString("340282366920938463463374607431768211456"); err == nil {
+	if _, err := Parse("340282366920938463463374607431768211456"); err == nil {
 		t.Fatal("expected error when parsing max+1")
 	}
-}
-
-func BenchmarkArithmetic(b *testing.B) {
-	randBuf := make([]byte, 17)
-	randUint128 := func() Uint128 {
-		rand.Read(randBuf)
-		var Lo, Hi uint64
-		if randBuf[16]&1 != 0 {
-			Lo = binary.LittleEndian.Uint64(randBuf[:8])
-		}
-		if randBuf[16]&2 != 0 {
-			Hi = binary.LittleEndian.Uint64(randBuf[8:])
-		}
-		return New(Lo, Hi)
-	}
-	x, y := randUint128(), randUint128()
-
-	b.Run("Add native", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			_ = x.Lo * y.Lo
-		}
-	})
-
-	b.Run("Add", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			x.Add(y)
-		}
-	})
-
-	b.Run("Sub", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			x.Sub(y)
-		}
-	})
-
-	b.Run("Mul", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			x.Mul(y)
-		}
-	})
-
-	b.Run("Lsh", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			x.Lsh(17)
-		}
-	})
-
-	b.Run("Rsh", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			x.Rsh(17)
-		}
-	})
-
-	b.Run("Cmp64", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			x.Cmp64(y.Lo)
-		}
-	})
-}
-
-func BenchmarkDivision(b *testing.B) {
-	randBuf := make([]byte, 8)
-	randU64 := func() uint64 {
-		rand.Read(randBuf)
-		return binary.LittleEndian.Uint64(randBuf) | 3 // avoid divide-by-zero
-	}
-	x64 := From64(randU64())
-	y64 := From64(randU64())
-	x128 := New(randU64(), randU64())
-	y128 := New(randU64(), randU64())
-
-	b.Run("native 64/64", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			_ = x64.Lo / y64.Lo
-		}
-	})
-	b.Run("Div64 64/64", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			x64.Div64(y64.Lo)
-		}
-	})
-	b.Run("Div64 128/64", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			x128.Div64(y64.Lo)
-		}
-	})
-	b.Run("Div 64/64", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			x64.Div(y64)
-		}
-	})
-	b.Run("Div 128/64-Lo", func(b *testing.B) {
-		x := x128
-		x.Hi = y64.Lo - 1
-		for i := 0; i < b.N; i++ {
-			x.Div(y64)
-		}
-	})
-	b.Run("Div 128/64-Hi", func(b *testing.B) {
-		x := x128
-		x.Hi = y64.Lo + 1
-		for i := 0; i < b.N; i++ {
-			x.Div(y64)
-		}
-	})
-	b.Run("Div 128/128", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			x128.Div(y128)
-		}
-	})
-	b.Run("big.Int 128/64", func(b *testing.B) {
-		xb, yb := x128.Big(), y64.Big()
-		q := new(big.Int)
-		for i := 0; i < b.N; i++ {
-			q = q.Div(xb, yb)
-		}
-	})
-	b.Run("big.Int 128/128", func(b *testing.B) {
-		xb, yb := x128.Big(), y128.Big()
-		q := new(big.Int)
-		for i := 0; i < b.N; i++ {
-			q = q.Div(xb, yb)
-		}
-	})
-}
-
-func BenchmarkString(b *testing.B) {
-	buf := make([]byte, 16)
-	rand.Read(buf)
-	x := New(
-		binary.LittleEndian.Uint64(buf[:8]),
-		binary.LittleEndian.Uint64(buf[8:]),
-	)
-	xb := x.Big()
-	b.Run("Uint128", func(b *testing.B) {
-		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
-			_ = x.String()
-		}
-	})
-	b.Run("big.Int", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			_ = xb.String()
-		}
-	})
 }
 
 func TestPutBytesBE(t *testing.T) {
 	ipa := "2001:db8::1"
 	ips := "42540766411282592856903984951653826561"
 
-	u, err := FromString(ips)
+	u, err := Parse(ips)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -480,8 +427,8 @@ func TestFromBytesBE(t *testing.T) {
 	ip := net.ParseIP("2001:db8::2")
 	ips := "42540766411282592856903984951653826562"
 
-	u1 := FromBytesBE(ip)
-	u2, err := FromString(ips)
+	u1 := NewFromBytesBE(ip)
+	u2, err := Parse(ips)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -500,11 +447,11 @@ func TestAppendBytes(t *testing.T) {
 	if len(b) != 2*16 {
 		t.Fatal("AppendBytes twice should append 32 bytes, got:", len(b))
 	}
-	if FromBytes(b) != u {
-		t.Fatal("FromBytes is not the inverse of AppendBytes for", u)
+	if NewFromBytes(b) != u {
+		t.Fatal("NewFromBytes is not the inverse of AppendBytes for", u)
 	}
-	if FromBytes(b[16:]) != v {
-		t.Fatal("FromBytes is not the inverse of AppendBytes for", v)
+	if NewFromBytes(b[16:]) != v {
+		t.Fatal("NewFromBytes is not the inverse of AppendBytes for", v)
 	}
 }
 
@@ -518,11 +465,11 @@ func TestAppendBytesBE(t *testing.T) {
 	if len(b) != 2*16 {
 		t.Fatal("AppendBytesBE twice should append 32 bytes, got:", len(b))
 	}
-	if FromBytesBE(b) != u {
-		t.Fatal("FromBytesBE is not the inverse of AppendBytesBE for", u)
+	if NewFromBytesBE(b) != u {
+		t.Fatal("NewFromBytesBE is not the inverse of AppendBytesBE for", u)
 	}
-	if FromBytesBE(b[16:]) != v {
-		t.Fatal("FromBytesBE is not the inverse of AppendBytesBE for", v)
+	if NewFromBytesBE(b[16:]) != v {
+		t.Fatal("NewFromBytesBE is not the inverse of AppendBytesBE for", v)
 	}
 }
 
@@ -533,7 +480,7 @@ func TestMarshalText(t *testing.T) {
 	}
 
 	test := testStruct{
-		Foo: From64(math.MaxUint64),
+		Foo: NewFromUint64(math.MaxUint64),
 		Bar: &Max,
 	}
 	b, err := xml.Marshal(test)

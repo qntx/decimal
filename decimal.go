@@ -1,10 +1,14 @@
 package decimal
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
 	"strconv"
+
+	"github.com/qntx/decimal/uint128"
+	"github.com/qntx/decimal/uint256"
 )
 
 var (
@@ -23,69 +27,69 @@ var (
 )
 
 // pre-computed values
-var pow10 = [39]u128{
-	{lo: 1},                                  // 10^0
-	{lo: 10},                                 // 10^1
-	{lo: 1e2},                                // 10^2
-	{lo: 1e3},                                // 10^3
-	{lo: 1e4},                                // 10^4
-	{lo: 1e5},                                // 10^5
-	{lo: 1e6},                                // 10^6
-	{lo: 1e7},                                // 10^7
-	{lo: 1e8},                                // 10^8
-	{lo: 1e9},                                // 10^9
-	{lo: 1e10},                               // 10^10
-	{lo: 1e11},                               // 10^11
-	{lo: 1e12},                               // 10^12
-	{lo: 1e13},                               // 10^13
-	{lo: 1e14},                               // 10^14
-	{lo: 1e15},                               // 10^15
-	{lo: 1e16},                               // 10^16
-	{lo: 1e17},                               // 10^17
-	{lo: 1e18},                               // 10^18
-	{lo: 1e19},                               // 10^19
-	{lo: 7_766_279_631_452_241_920, hi: 5},   // 10^20
-	{lo: 3_875_820_019_684_212_736, hi: 54},  // 10^21
-	{lo: 1_864_712_049_423_024_128, hi: 542}, // 10^22
-	{lo: 200_376_420_520_689_664, hi: 5_421}, // 10^23
-	{lo: 2_003_764_205_206_896_640, hi: 54_210},                  // 10^24
-	{lo: 1_590_897_978_359_414_784, hi: 542_101},                 // 10^25
-	{lo: 15_908_979_783_594_147_840, hi: 5_421_010},              // 10^26
-	{lo: 11_515_845_246_265_065_472, hi: 54_210_108},             // 10^27
-	{lo: 4_477_988_020_393_345_024, hi: 542_101_086},             // 10^28
-	{lo: 7_886_392_056_514_347_008, hi: 5_421_010_862},           // 10^29
-	{lo: 5_076_944_270_305_263_616, hi: 54_210_108_624},          // 10^30
-	{lo: 1_387_595_455_563_353_2928, hi: 542_101_086_242},        // 10^31
-	{lo: 9_632_337_040_368_467_968, hi: 5_421_010_862_427},       // 10^32
-	{lo: 4_089_650_035_136_921_600, hi: 54_210_108_624_275},      // 10^33
-	{lo: 4_003_012_203_950_112_768, hi: 542_101_086_242_752},     // 10^34
-	{lo: 3_136_633_892_082_024_448, hi: 5_421_010_862_427_522},   // 10^35
-	{lo: 12_919_594_847_110_692_864, hi: 54_210_108_624_275_221}, // 10^36
-	{lo: 68_739_955_140_067_328, hi: 542_101_086_242_752_217},    // 10^37
-	{lo: 687_399_551_400_673_280, hi: 5_421_010_862_427_522_170}, // 10^38
+var pow10 = [39]uint128.Uint128{
+	uint128.NewFromUint64(1),                                        // 10^0
+	uint128.NewFromUint64(10),                                       // 10^1
+	uint128.NewFromUint64(1e2),                                      // 10^2
+	uint128.NewFromUint64(1e3),                                      // 10^3
+	uint128.NewFromUint64(1e4),                                      // 10^4
+	uint128.NewFromUint64(1e5),                                      // 10^5
+	uint128.NewFromUint64(1e6),                                      // 10^6
+	uint128.NewFromUint64(1e7),                                      // 10^7
+	uint128.NewFromUint64(1e8),                                      // 10^8
+	uint128.NewFromUint64(1e9),                                      // 10^9
+	uint128.NewFromUint64(1e10),                                     // 10^10
+	uint128.NewFromUint64(1e11),                                     // 10^11
+	uint128.NewFromUint64(1e12),                                     // 10^12
+	uint128.NewFromUint64(1e13),                                     // 10^13
+	uint128.NewFromUint64(1e14),                                     // 10^14
+	uint128.NewFromUint64(1e15),                                     // 10^15
+	uint128.NewFromUint64(1e16),                                     // 10^16
+	uint128.NewFromUint64(1e17),                                     // 10^17
+	uint128.NewFromUint64(1e18),                                     // 10^18
+	uint128.NewFromUint64(1e19),                                     // 10^19
+	uint128.New(7_766_279_631_452_241_920, 5),                       // 10^20
+	uint128.New(3_875_820_019_684_212_736, 54),                      // 10^21
+	uint128.New(1_864_712_049_423_024_128, 542),                     // 10^22
+	uint128.New(200_376_420_520_689_664, 5_421),                     // 10^23
+	uint128.New(2_003_764_205_206_896_640, 54_210),                  // 10^24
+	uint128.New(1_590_897_978_359_414_784, 542_101),                 // 10^25
+	uint128.New(15_908_979_783_594_147_840, 5_421_010),              // 10^26
+	uint128.New(11_515_845_246_265_065_472, 54_210_108),             // 10^27
+	uint128.New(4_477_988_020_393_345_024, 542_101_086),             // 10^28
+	uint128.New(7_886_392_056_514_347_008, 5_421_010_862),           // 10^29
+	uint128.New(5_076_944_270_305_263_616, 54_210_108_624),          // 10^30
+	uint128.New(1_387_595_455_563_353_2928, 542_101_086_242),        // 10^31
+	uint128.New(9_632_337_040_368_467_968, 5_421_010_862_427),       // 10^32
+	uint128.New(4_089_650_035_136_921_600, 54_210_108_624_275),      // 10^33
+	uint128.New(4_003_012_203_950_112_768, 542_101_086_242_752),     // 10^34
+	uint128.New(3_136_633_892_082_024_448, 5_421_010_862_427_522),   // 10^35
+	uint128.New(12_919_594_847_110_692_864, 54_210_108_624_275_221), // 10^36
+	uint128.New(68_739_955_140_067_328, 542_101_086_242_752_217),    // 10^37
+	uint128.New(687_399_551_400_673_280, 5_421_010_862_427_522_170), // 10^38
 }
 
 var pow10Big = [20]*big.Int{
-	big.NewInt(1),        // 10^0
-	big.NewInt(10),       // 10^1
-	big.NewInt(1e2),      // 10^2
-	big.NewInt(1e3),      // 10^3
-	big.NewInt(1e4),      // 10^4
-	big.NewInt(1e5),      // 10^5
-	big.NewInt(1e6),      // 10^6
-	big.NewInt(1e7),      // 10^7
-	big.NewInt(1e8),      // 10^8
-	big.NewInt(1e9),      // 10^9
-	big.NewInt(1e10),     // 10^10
-	big.NewInt(1e11),     // 10^11
-	big.NewInt(1e12),     // 10^12
-	big.NewInt(1e13),     // 10^13
-	big.NewInt(1e14),     // 10^14
-	big.NewInt(1e15),     // 10^15
-	big.NewInt(1e16),     // 10^16
-	big.NewInt(1e17),     // 10^17
-	big.NewInt(1e18),     // 10^18
-	pow10[19].ToBigInt(), // 10^19
+	big.NewInt(1),    // 10^0
+	big.NewInt(10),   // 10^1
+	big.NewInt(1e2),  // 10^2
+	big.NewInt(1e3),  // 10^3
+	big.NewInt(1e4),  // 10^4
+	big.NewInt(1e5),  // 10^5
+	big.NewInt(1e6),  // 10^6
+	big.NewInt(1e7),  // 10^7
+	big.NewInt(1e8),  // 10^8
+	big.NewInt(1e9),  // 10^9
+	big.NewInt(1e10), // 10^10
+	big.NewInt(1e11), // 10^11
+	big.NewInt(1e12), // 10^12
+	big.NewInt(1e13), // 10^13
+	big.NewInt(1e14), // 10^14
+	big.NewInt(1e15), // 10^15
+	big.NewInt(1e16), // 10^16
+	big.NewInt(1e17), // 10^17
+	big.NewInt(1e18), // 10^18
+	pow10[19].Big(),  // 10^19
 }
 
 var (
@@ -173,7 +177,7 @@ func NewFromHiLo(neg bool, hi uint64, lo uint64, prec uint8) (Decimal, error) {
 		return Decimal{}, ErrPrecOutOfRange
 	}
 
-	coef := u128{hi: hi, lo: lo}
+	coef := uint128.New(lo, hi)
 	return newDecimal(neg, bintFromU128(coef), prec), nil
 }
 
@@ -287,7 +291,7 @@ func (d Decimal) Int64() (int64, error) {
 	}
 
 	//nolint:gosec // can be safely converted as we already checked if coef.u128 is less than math.MaxInt64 above
-	int64Part := int64(d1.coef.u128.lo)
+	int64Part := int64(d1.coef.u128.Low())
 	if d1.neg {
 		int64Part = -int64Part
 	}
@@ -311,7 +315,7 @@ func (d Decimal) ToHiLo() (neg bool, hi uint64, lo uint64, prec uint8, ok bool) 
 	if d.coef.bigInt != nil {
 		return
 	}
-	return d.neg, d.coef.u128.hi, d.coef.u128.lo, d.prec, true
+	return d.neg, d.coef.u128.High(), d.coef.u128.Low(), d.prec, true
 }
 
 // Parse parses a number in string to a decimal.
@@ -489,7 +493,7 @@ func (d Decimal) Mul(e Decimal) Decimal {
 		return newDecimal(neg, bintFromBigInt(dBig), prec)
 	}
 
-	q, _ := new(big.Int).QuoRem(dBig, pow10[prec-defaultPrec].ToBigInt(), new(big.Int))
+	q, _ := new(big.Int).QuoRem(dBig, pow10[prec-defaultPrec].Big(), new(big.Int))
 	return newDecimal(neg, bintFromBigInt(q), defaultPrec)
 }
 
@@ -498,22 +502,46 @@ func tryMulU128(d, e Decimal, neg bool, prec uint8) (Decimal, error) {
 		return Decimal{}, errOverflow
 	}
 
-	rcoef := d.coef.u128.MulToU256(e.coef.u128)
+	// Use MulFull to get high and low 128-bit parts of the product.
+	hiProd, loProd := d.coef.u128.MulFull(e.coef.u128)
+
 	if prec <= defaultPrec {
-		if !rcoef.carry.IsZero() {
+		// If hiProd is not zero, the product overflows 128 bits.
+		if !hiProd.IsZero() {
 			return Decimal{}, errOverflow
 		}
-
-		coef := u128{hi: rcoef.hi, lo: rcoef.lo}
-		return newDecimal(neg, bintFromU128(coef), prec), nil
+		// The coefficient is the low 128-bit part of the product.
+		return newDecimal(neg, bintFromU128(loProd), prec), nil
 	}
 
-	q, _, err := rcoef.fastQuo(pow10[prec-defaultPrec])
+	// For prec > defaultPrec, we need to divide the 256-bit product.
+	// Construct the 256-bit number from hiProd and loProd.
+	r256 := uint256.New(loProd, hiProd)
+
+	// Get the divisor (pow10[prec-defaultPrec]), which is uint128.Uint128.
+	// Ensure prec-defaultPrec is a valid index for pow10, this logic is preserved from original.
+	divisor128 := pow10[prec-defaultPrec]
+
+	// Convert divisor to Uint256 for QuoRem.
+	divisor256 := uint256.NewFromUint128(divisor128)
+
+	// Perform division: r256 / divisor256.
+	q256, _, err := r256.QuoRem(divisor256)
 	if err != nil {
+		// Handle division errors (e.g., division by zero, though pow10 should be safe).
 		return Decimal{}, err
 	}
 
-	return newDecimal(neg, bintFromU128(q), defaultPrec), nil
+	// The quotient q256 is Uint256. Check if it fits into Uint128.
+	if !q256.High().IsZero() {
+		// Quotient is too large to fit in Uint128, consider it an overflow.
+		return Decimal{}, errOverflow
+	}
+
+	// The final 128-bit quotient.
+	q128 := q256.Low()
+
+	return newDecimal(neg, bintFromU128(q128), defaultPrec), nil
 }
 
 // Mul64 returns d * e where e is a uint64.
@@ -565,7 +593,7 @@ func (d Decimal) Div(e Decimal) (Decimal, error) {
 	dBig := d.coef.GetBig()
 	eBig := e.coef.GetBig()
 
-	dBig.Mul(dBig, pow10[factor].ToBigInt())
+	dBig.Mul(dBig, pow10[factor].Big())
 	dBig.Div(dBig, eBig)
 	return newDecimal(neg, bintFromBigInt(dBig), defaultPrec), nil
 }
@@ -575,17 +603,40 @@ func tryDivU128(d, e Decimal, neg bool) (Decimal, error) {
 		return Decimal{}, errOverflow
 	}
 
-	// Need to multiply divident with factor
+	// Need to multiply dividend with factor
 	// to make sure the total decimal number after the decimal point is defaultPrec
 	factor := defaultPrec - (d.prec - e.prec)
 
-	d256 := d.coef.u128.MulToU256(pow10[factor])
-	quo, _, err := d256.fastQuo(e.coef.u128)
+	// Calculate the 256-bit dividend: d.coef.u128 * pow10[factor]
+	hiProd, loProd := d.coef.u128.MulFull(pow10[factor])
+	dividend256 := uint256.New(loProd, hiProd)
+
+	// The divisor is e.coef.u128. Convert it to Uint256 for QuoRem.
+	divisorU128 := e.coef.u128
+	// Handle division by zero explicitly, as NewFromUint128(Zero).QuoRem(anything) might not be what's expected
+	// or QuoRem itself might panic or return an error for zero divisor.
+	if divisorU128.IsZero() {
+		return Decimal{}, ErrDivideByZero // Or an appropriate error for division by zero in this context
+	}
+	divisor256 := uint256.NewFromUint128(divisorU128)
+
+	// Perform division: dividend256 / divisor256
+	q256, _, err := dividend256.QuoRem(divisor256)
 	if err != nil {
+		// This could be ErrDivideByZero if not caught above, or other potential errors from QuoRem.
 		return Decimal{}, err
 	}
 
-	return newDecimal(neg, bintFromU128(quo), defaultPrec), nil
+	// The quotient q256 is Uint256. Check if it fits into Uint128.
+	if !q256.High().IsZero() {
+		// Quotient is too large to fit in Uint128, consider it an overflow.
+		return Decimal{}, errOverflow
+	}
+
+	// The final 128-bit quotient.
+	finalQuo128 := q256.Low()
+
+	return newDecimal(neg, bintFromU128(finalQuo128), defaultPrec), nil
 }
 
 // Div64 returns d / e where e is a uint64.
@@ -602,18 +653,39 @@ func (d Decimal) Div64(v uint64) (Decimal, error) {
 	}
 
 	if !d.coef.overflow() {
-		d256 := d.coef.u128.MulToU256(pow10[defaultPrec-d.prec])
-		quo, _, err := d256.div192by64(v)
-		if err == nil {
-			return newDecimal(d.neg, bintFromU128(quo), defaultPrec), nil
+		// Calculate the scaled dividend: d.coef.u128 * pow10[defaultPrec-d.prec]
+		// Ensure defaultPrec-d.prec is a valid index for pow10.
+		scaleFactor := defaultPrec - d.prec
+		// Add a check for scaleFactor validity if necessary, assuming it's valid based on original code.
+		hiProd, loProd := d.coef.u128.MulFull(pow10[scaleFactor])
+		dividend256 := uint256.New(loProd, hiProd)
+
+		// Prepare the divisor as Uint256.
+		// v is guaranteed to be non-zero here.
+		divisor256 := uint256.NewFromUint64(v)
+
+		// Perform division: dividend256 / divisor256.
+		// For v > 0, QuoRem is expected to return a nil error.
+		q256, _, errQuoRem := dividend256.QuoRem(divisor256)
+
+		// If division was successful (errQuoRem is nil, expected here)
+		// and the quotient fits within a uint128.Uint128.
+		if errQuoRem == nil && q256.High().IsZero() {
+			finalQuo128 := q256.Low()
+			return newDecimal(d.neg, bintFromU128(finalQuo128), defaultPrec), nil
 		}
 
+		// If quotient overflows uint128 (q256.High() != 0) or if errQuoRem was unexpectedly non-nil,
+		// fall through to *big.Int arithmetic.
 		// overflow, try with *big.Int
 	}
 
-	// overflow, try with *big.Int
+	// Fallback path: d.coef already overflowed, or the fast path above resulted in overflow.
+	// try with *big.Int
 	dBig := d.coef.GetBig()
-	dBig.Mul(dBig, pow10[defaultPrec-d.prec].ToBigInt())
+	// Ensure defaultPrec-d.prec is a valid index for pow10.
+	scaleFactor := defaultPrec - d.prec
+	dBig.Mul(dBig, pow10[scaleFactor].Big())
 	dBig.Div(dBig, new(big.Int).SetUint64(v))
 
 	return newDecimal(d.neg, bintFromBigInt(dBig), defaultPrec), nil
@@ -641,8 +713,8 @@ func (d Decimal) QuoRem(e Decimal) (Decimal, Decimal, error) {
 	dBig := d.coef.GetBig()
 	eBig := e.coef.GetBig()
 
-	dBig.Mul(dBig, pow10[factor-d.prec].ToBigInt())
-	eBig.Mul(eBig, pow10[factor-e.prec].ToBigInt())
+	dBig.Mul(dBig, pow10[factor-d.prec].Big())
+	eBig.Mul(eBig, pow10[factor-e.prec].Big())
 
 	qBig, rBig := new(big.Int), new(big.Int)
 	qBig.QuoRem(dBig, eBig, rBig)
@@ -658,34 +730,70 @@ func tryQuoRemU128(d, e Decimal) (Decimal, Decimal, error) {
 	}
 
 	var (
-		factor uint8
-		d256   u256
-		e128   u128
-		err    error
+		factor      uint8
+		dividend256 uint256.Uint256
+		divisorU128 uint128.Uint128 // Scaled divisor, must fit in 128 bits for this path
+		err         error
 	)
 
 	if d.prec == e.prec {
 		factor = d.prec
-		d256 = u256{lo: d.coef.u128.lo, hi: d.coef.u128.hi}
-		e128 = e.coef.u128
+		// Dividend is d's coefficient, as a 256-bit number (though high part is zero)
+		dividend256 = uint256.NewFromUint128(d.coef.u128)
+		// Divisor is e's coefficient
+		divisorU128 = e.coef.u128
 	} else {
 		factor = max(d.prec, e.prec)
-		d256 = d.coef.u128.MulToU256(pow10[factor-d.prec])
 
-		// If divisor >= 2^128, we can't use fastQuo and have to fallback to big.Int
-		e128, err = e.coef.u128.Mul(pow10[factor-e.prec])
+		// Scale dividend d to common precision 'factor'
+		scaleByD := pow10[factor-d.prec]
+		hiProdD, loProdD := d.coef.u128.MulFull(scaleByD)
+		dividend256 = uint256.New(loProdD, hiProdD)
+
+		// Scale divisor e to common precision 'factor'
+		scaleByE := pow10[factor-e.prec]
+		divisorU128, err = e.coef.u128.Mul(scaleByE)
 		if err != nil {
-			return Decimal{}, Decimal{}, err
+			// Scaled divisor overflows uint128. This path cannot proceed.
+			return Decimal{}, Decimal{}, err // err is ErrOverflow from uint128.Mul
 		}
 	}
 
-	q1, r1, err := d256.fastQuo(e128)
+	// Check for division by zero using the 128-bit scaled divisor
+	if divisorU128.IsZero() {
+		return Decimal{}, Decimal{}, ErrDivideByZero
+	}
+	// Convert 128-bit divisor to 256-bit for QuoRem method
+	divisor256 := uint256.NewFromUint128(divisorU128)
+
+	// Perform 256-bit by 256-bit division
+	q256, r256, err := dividend256.QuoRem(divisor256)
 	if err != nil {
+		// This typically only happens if divisor256 was zero, already checked by divisorU128.IsZero().
+		// Propagate error if it occurs for other reasons.
 		return Decimal{}, Decimal{}, err
 	}
 
-	q := newDecimal(d.neg != e.neg, bintFromU128(q1), 0)
-	r := newDecimal(d.neg, bintFromU128(r1), factor)
+	// Results from QuoRem are uint256.Uint256.
+	// For this "fast path", quotient and remainder must fit in uint128.Uint128.
+	if !q256.High().IsZero() || !r256.High().IsZero() {
+		// Quotient or remainder is too large to fit in uint128. Signal fallback.
+		return Decimal{}, Decimal{}, errOverflow
+	}
+
+	qFinal128 := q256.Low()
+	// The remainder r256 must also fit in uint128, which is checked above.
+	// Additionally, the remainder r should be less than the original scaled divisorU128.
+	// The QuoRem contract ensures r < divisor, so r256.Lt(divisor256) is true.
+	// Since divisor256 was created from divisorU128 (which fits in 128 bits),
+	// and r256.High().IsZero() is true, r256.Low() is the correct 128-bit remainder.
+	rFinal128 := r256.Low()
+
+	// Construct result Decimals
+	// Quotient q has precision 0.
+	q := newDecimal(d.neg != e.neg, bintFromU128(qFinal128), 0)
+	// Remainder r has precision 'factor'.
+	r := newDecimal(d.neg, bintFromU128(rFinal128), factor)
 
 	return q, r, nil
 }
@@ -800,9 +908,9 @@ func (d Decimal) cmpDecSameSign(e Decimal) int {
 	}
 
 	if d.prec < e.prec {
-		dBig.Mul(dBig, pow10[e.prec-d.prec].ToBigInt())
+		dBig.Mul(dBig, pow10[e.prec-d.prec].Big())
 	} else {
-		eBig.Mul(eBig, pow10[d.prec-e.prec].ToBigInt())
+		eBig.Mul(eBig, pow10[d.prec-e.prec].Big())
 	}
 
 	return dBig.Cmp(eBig)
@@ -810,27 +918,35 @@ func (d Decimal) cmpDecSameSign(e Decimal) int {
 
 func tryCmpU128(d, e Decimal) (int, error) {
 	if d.coef.overflow() || e.coef.overflow() {
-		return 0, errOverflow
+		return 0, errOverflow // Fast path not applicable if coefficients are already big.Ints
 	}
 
 	if d.prec == e.prec {
 		return d.coef.u128.Cmp(e.coef.u128), nil
 	}
 
-	// prec is different
-	// e has more fraction digits
+	// Precisions are different, scale one of the numbers to match the other's precision.
 	if d.prec < e.prec {
-		// d has more fraction digits
-		d256 := d.coef.u128.MulToU256(pow10[e.prec-d.prec])
-		return d256.cmp128(e.coef.u128), nil
+		// e has more fractional digits (e.g., d=1.2, e=1.23). Scale d.
+		// Compare d * 10^(e.prec - d.prec) with e.
+		scaleFactor := pow10[e.prec-d.prec]
+		hiProdD, loProdD := d.coef.u128.MulFull(scaleFactor)
+		valD256 := uint256.New(loProdD, hiProdD)
+		// valD256 is (d * scaleFactor), e.coef.u128 is e's coefficient.
+		// Cmp128(v uint128.Uint128) compares the Uint256 receiver with v.
+		return valD256.Cmp128(e.coef.u128), nil
+	} else { // d.prec > e.prec
+		// d has more fractional digits (e.g., d=1.23, e=1.2). Scale e.
+		// Compare d with e * 10^(d.prec - e.prec).
+		scaleFactor := pow10[d.prec-e.prec]
+		hiProdE, loProdE := e.coef.u128.MulFull(scaleFactor)
+		valE256 := uint256.New(loProdE, hiProdE)
+		// valE256 is (e * scaleFactor), d.coef.u128 is d's coefficient.
+		// We want to calculate d.coef.u128 Cmp valE256.
+		// valE256.Cmp128(d.coef.u128) calculates (valE256 Cmp d.coef.u128).
+		// So, the result needs to be negated.
+		return -valE256.Cmp128(d.coef.u128), nil
 	}
-
-	// d has more fraction digits
-	// we need to compare d with e * 10^(d.prec - e.prec)
-	e256 := e.coef.u128.MulToU256(pow10[d.prec-e.prec])
-
-	// remember to reverse the result because e256.cmp128(d.coef) returns the opposite
-	return -e256.cmp128(d.coef.u128), nil
 }
 
 // Rescale returns the decimal with the new prec only if the new prec is greater than the current prec.
@@ -927,12 +1043,12 @@ func (d Decimal) RoundBank(prec uint8) Decimal {
 	}
 
 	factor := pow10[d.prec-prec]
-	lo := factor.lo / 2
+	lo := factor.Low() / 2
 
 	if !d.coef.overflow() {
 		var err error
-		q, r := d.coef.u128.QuoRem64(factor.lo)
-		if lo < r || (lo == r && q.lo%2 == 1) {
+		q, r := d.coef.u128.QuoRem64(factor.Low())
+		if lo < r || (lo == r && q.Low()%2 == 1) {
 			q, err = q.Add64(1)
 		}
 
@@ -944,7 +1060,7 @@ func (d Decimal) RoundBank(prec uint8) Decimal {
 
 	// overflow, fallback to big.Int
 	dBig := d.coef.GetBig()
-	q, r := new(big.Int).QuoRem(dBig, factor.ToBigInt(), new(big.Int))
+	q, r := new(big.Int).QuoRem(dBig, factor.Big(), new(big.Int))
 
 	loBig := new(big.Int).SetUint64(lo)
 	if r.Cmp(loBig) > 0 || (r.Cmp(loBig) == 0 && q.Bit(0) == 1) {
@@ -973,7 +1089,7 @@ func (d Decimal) RoundAwayFromZero(prec uint8) Decimal {
 
 	if !d.coef.overflow() {
 		var err error
-		q, r := d.coef.u128.QuoRem64(factor.lo)
+		q, r := d.coef.u128.QuoRem64(factor.Low())
 
 		if r != 0 {
 			q, err = q.Add64(1)
@@ -986,7 +1102,7 @@ func (d Decimal) RoundAwayFromZero(prec uint8) Decimal {
 
 	// overflow, fallback to big.Int
 	dBig := d.coef.GetBig()
-	q, r := new(big.Int).QuoRem(dBig, factor.ToBigInt(), new(big.Int))
+	q, r := new(big.Int).QuoRem(dBig, factor.Big(), new(big.Int))
 
 	if r.Cmp(bigZero) != 0 {
 		q.Add(q, bigOne)
@@ -1013,7 +1129,7 @@ func (d Decimal) RoundHAZ(prec uint8) Decimal {
 
 	if !d.coef.overflow() {
 		var err error
-		q, r := d.coef.u128.QuoRem64(factor.lo)
+		q, r := d.coef.u128.QuoRem64(factor.Low())
 		if half.Cmp64(r) <= 0 {
 			q, err = q.Add64(1)
 		}
@@ -1025,9 +1141,9 @@ func (d Decimal) RoundHAZ(prec uint8) Decimal {
 
 	// overflow, fallback to big.Int
 	dBig := d.coef.GetBig()
-	q, r := new(big.Int).QuoRem(dBig, factor.ToBigInt(), new(big.Int))
+	q, r := new(big.Int).QuoRem(dBig, factor.Big(), new(big.Int))
 
-	loBig := half.ToBigInt()
+	loBig := half.Big()
 	if r.Cmp(loBig) >= 0 {
 		q.Add(q, bigOne)
 	}
@@ -1053,7 +1169,7 @@ func (d Decimal) RoundHTZ(prec uint8) Decimal {
 
 	if !d.coef.overflow() {
 		var err error
-		q, r := d.coef.u128.QuoRem64(factor.lo)
+		q, r := d.coef.u128.QuoRem64(factor.Low())
 		if half.Cmp64(r) < 0 {
 			q, err = q.Add64(1)
 		}
@@ -1065,9 +1181,9 @@ func (d Decimal) RoundHTZ(prec uint8) Decimal {
 
 	// overflow, fallback to big.Int
 	dBig := d.coef.GetBig()
-	q, r := new(big.Int).QuoRem(dBig, factor.ToBigInt(), new(big.Int))
+	q, r := new(big.Int).QuoRem(dBig, factor.Big(), new(big.Int))
 
-	loBig := half.ToBigInt()
+	loBig := half.Big()
 	if r.Cmp(loBig) > 0 {
 		q.Add(q, bigOne)
 	}
@@ -1083,7 +1199,7 @@ func (d Decimal) Floor() Decimal {
 
 	if !d.coef.overflow() {
 		var err error
-		q, r := d.coef.u128.QuoRem64(pow10[d.prec].lo)
+		q, r := d.coef.u128.QuoRem64(pow10[d.prec].Low())
 
 		// add 1 if it's negative and there's a remainder, e.g. -1.5 -> -2
 		if d.neg && r != 0 {
@@ -1097,7 +1213,7 @@ func (d Decimal) Floor() Decimal {
 
 	// overflow, fallback to big.Int
 	dBig := d.coef.GetBig()
-	q, r := new(big.Int).QuoRem(dBig, pow10[d.prec].ToBigInt(), new(big.Int))
+	q, r := new(big.Int).QuoRem(dBig, pow10[d.prec].Big(), new(big.Int))
 
 	// add 1 if it's negative and there's a remainder, e.g. -1.5 -> -2
 	if d.neg && r.Cmp(bigZero) != 0 {
@@ -1115,7 +1231,7 @@ func (d Decimal) Ceil() Decimal {
 
 	if !d.coef.overflow() {
 		var err error
-		q, r := d.coef.u128.QuoRem64(pow10[d.prec].lo)
+		q, r := d.coef.u128.QuoRem64(pow10[d.prec].Low())
 
 		// add 1 if it's positive and there's a remainder, e.g. 1.5 -> 2
 		if !d.neg && r != 0 {
@@ -1129,7 +1245,7 @@ func (d Decimal) Ceil() Decimal {
 
 	// overflow, fallback to big.Int
 	dBig := d.coef.GetBig()
-	q, r := new(big.Int).QuoRem(dBig, pow10[d.prec].ToBigInt(), new(big.Int))
+	q, r := new(big.Int).QuoRem(dBig, pow10[d.prec].Big(), new(big.Int))
 
 	// add 1 if it's positive and there's a remainder, e.g. 1.5 -> 2
 	if !d.neg && r.Cmp(bigZero) != 0 {
@@ -1153,13 +1269,13 @@ func (d Decimal) Trunc(prec uint8) Decimal {
 	factor := pow10[d.prec-prec]
 
 	if !d.coef.overflow() {
-		q, _ := d.coef.u128.QuoRem64(factor.lo)
+		q, _ := d.coef.u128.QuoRem64(factor.Low())
 		return newDecimal(d.neg, bintFromU128(q), prec)
 	}
 
 	// overflow, fallback to big.Int
 	dBig := d.coef.GetBig()
-	q := new(big.Int).Quo(dBig, factor.ToBigInt())
+	q := new(big.Int).Quo(dBig, factor.Big())
 	return newDecimal(d.neg, bintFromBigInt(q), prec)
 }
 
@@ -1177,11 +1293,11 @@ func (d Decimal) trimTrailingZeros() Decimal {
 		}
 
 		if zeros >= d.prec {
-			dBig.Div(dBig, pow10[d.prec].ToBigInt())
+			dBig.Div(dBig, pow10[d.prec].Big())
 			prec = 0
 		} else {
 			prec = d.prec - uint8(zeros)
-			dBig.Div(dBig, pow10[zeros].ToBigInt())
+			dBig.Div(dBig, pow10[zeros].Big())
 		}
 
 		return newDecimal(d.neg, bintFromBigInt(dBig), prec)
@@ -1193,7 +1309,7 @@ func (d Decimal) trimTrailingZeros() Decimal {
 	}
 
 	var (
-		coef u128
+		coef uint128.Uint128
 		prec uint8
 	)
 
@@ -1257,19 +1373,19 @@ func trailingZerosBigInt(n *big.Int) uint8 {
 	return zeros
 }
 
-func trailingZerosU128(n u128) uint8 {
+func trailingZerosU128(n uint128.Uint128) uint8 {
 	var zeros uint8
 
 	_, rem := n.QuoRem64(1e16)
 	if rem == 0 {
 		zeros += 16
 
-		_, rem = n.QuoRem64(pow10[zeros+2].lo)
+		_, rem = n.QuoRem64(pow10[zeros+2].Low())
 		if rem == 0 {
 			zeros += 2
 		}
 
-		_, rem = n.QuoRem64(pow10[zeros+1].lo)
+		_, rem = n.QuoRem64(pow10[zeros+1].Low())
 		if rem == 0 {
 			zeros++
 		}
@@ -1282,17 +1398,17 @@ func trailingZerosU128(n u128) uint8 {
 		zeros += 8
 	}
 
-	_, rem = n.QuoRem64(pow10[zeros+4].lo)
+	_, rem = n.QuoRem64(pow10[zeros+4].Low())
 	if rem == 0 {
 		zeros += 4
 	}
 
-	_, rem = n.QuoRem64(pow10[zeros+2].lo)
+	_, rem = n.QuoRem64(pow10[zeros+2].Low())
 	if rem == 0 {
 		zeros += 2
 	}
 
-	_, rem = n.QuoRem64(pow10[zeros+1].lo)
+	_, rem = n.QuoRem64(pow10[zeros+1].Low())
 	if rem == 0 {
 		zeros++
 	}
@@ -1332,8 +1448,8 @@ func (d Decimal) PowToIntPart(e Decimal) (Decimal, error) {
 	// convert eInt to int32
 	var exponent int32
 
-	//nolint:gosec // Can be safely converted to int32 because u128.lo is already checked to be less than math.MaxInt32
-	exponent = int32(eInt.coef.u128.lo)
+	//nolint:gosec // coef is positive, so it's safe to convert to int32
+	exponent = int32(eInt.coef.u128.Low())
 
 	if eInt.neg {
 		exponent = -exponent
@@ -1506,9 +1622,29 @@ func (d Decimal) tryPowIntU128(e int) (Decimal, error) {
 		return Decimal{}, errOverflow
 	}
 
-	if d.coef.u128.hi != 0 && e >= 4 {
-		// e >= 4 and u128.hi != 0 means the result will >= 2^256,
-		// which we can't use fast division. So we need to use big.Int instead
+	// Handle e=0 and e=1 early as they are common and simple.
+	if e == 0 {
+		// d^0 = 1. The precision of 1 is typically 0.
+		// Or, if d is 0, 0^0 is often 1 in this context, but could be an error.
+		// Assuming 1 with precision 0 for d^0.
+		return One, nil
+	}
+	if e == 1 {
+		return d, nil
+	}
+
+	// The uint256.Pow method expects a uint64 exponent.
+	// If e can be negative, this function needs more logic (e.g., 1/d^(-e)).
+	// Assuming e is positive based on typical integer power usage in such optimized paths.
+	if e < 0 {
+		// Or handle d^(-e) by calculating 1 / (d^|e|), which likely falls back to big.Int arithmetic.
+		return Decimal{}, errors.New("negative exponent not supported in tryPowIntU128 fast path")
+	}
+
+	// Original check: if d.coef.u128.High() (meaning d.coef.u128.hi the uint64 part) != 0 && e >= 4
+	// This implies if the number is >= 2^64, and exponent is >=4, result is >= (2^64)^4 = 2^256.
+	// This check is still relevant for early exit.
+	if d.coef.u128.High() != 0 && e >= 4 { // Assuming HiUint64() gives access to the old .hi field's value for this check
 		return Decimal{}, errOverflow
 	}
 
@@ -1517,36 +1653,57 @@ func (d Decimal) tryPowIntU128(e int) (Decimal, error) {
 		neg = false
 	}
 
-	exponent := int(d.prec) * e
-	if exponent > int(defaultPrec)+38 {
-		// we can't do adjustment if exponent > defaultPrec + 38 (can't find pow10[exponent - defaultPrec])
+	// Calculate the precision of the result before any scaling for defaultPrec
+	// exponentPrec is the precision that d^e would naturally have.
+	exponentPrec := int(d.prec) * e
+	if exponentPrec > int(defaultPrec)+38 { // Max index for pow10 for scaling
 		return Decimal{}, errOverflow
 	}
 
-	d256 := u256{lo: d.coef.u128.lo, hi: d.coef.u128.hi}
-	result, err := d256.pow(e)
+	// Base for the power operation is d's coefficient, as a Uint256.
+	base256 := uint256.NewFromUint128(d.coef.u128)
+
+	// Calculate base256 ^ e. uint256.Pow takes uint64 exponent.
+	result256, err := base256.Pow(uint64(e))
 	if err != nil {
+		// This could be an overflow if intermediate products in Pow exceed Uint256.Max
 		return Decimal{}, err
 	}
 
-	// exponent <= defaultPrec, no need to adjust the result
-	if exponent <= int(defaultPrec) {
-		if !result.carry.IsZero() {
+	// Case 1: The natural precision of d^e is within defaultPrecision.
+	if exponentPrec <= int(defaultPrec) {
+		// The result256 (which is d^e without decimal point consideration yet)
+		// must fit into a uint128 to be represented by bintFromU128.
+		if !result256.High().IsZero() {
+			// Quotient is too large to fit in Uint128, consider it an overflow.
 			return Decimal{}, errOverflow
 		}
-
-		//nolint:gosec // exponent <= defaultPrec, so it's safe to convert to uint8
-		return newDecimal(neg, bintFromU128(u128{hi: result.hi, lo: result.lo}), uint8(exponent)), nil
+		finalCoeff128 := result256.Low()
+		return newDecimal(neg, bintFromU128(finalCoeff128), uint8(exponentPrec)), nil
 	}
 
-	// exponent > defaultPrec, adjust the result to u128 by dividing it with 10^(exponent - defaultPrec)
-	factor := exponent - int(defaultPrec)
-	q, _, err := result.fastQuo(pow10[factor]) // it's safe to use pow10[factor] as factor <= 38 (conditional check above)
+	// Case 2: The natural precision of d^e is greater than defaultPrecision.
+	// We need to scale down result256 by dividing by 10^(exponentPrec - defaultPrec).
+	scaleDownFactorVal := exponentPrec - int(defaultPrec)
+	// pow10 array is indexed up to 38, checked by (exponentPrec > int(defaultPrec)+38)
+	divisorU128 := pow10[scaleDownFactorVal]
+	divisor256 := uint256.NewFromUint128(divisorU128)
+
+	if divisor256.IsZero() { // Should not happen if scaleDownFactorVal is valid for pow10
+		return Decimal{}, ErrDivideByZero
+	}
+	// Perform division: result256 / divisor256
+	q256, _, err := result256.QuoRem(divisor256)
 	if err != nil {
 		return Decimal{}, err
 	}
 
-	return newDecimal(neg, bintFromU128(q), defaultPrec), nil
+	// The scaled quotient must fit into uint128.
+	if !q256.High().IsZero() {
+		return Decimal{}, errOverflow
+	}
+	finalCoeff128 := q256.Low()
+	return newDecimal(neg, bintFromU128(finalCoeff128), defaultPrec), nil
 }
 
 func (d Decimal) tryInversePowIntU128(e int) (Decimal, error) {
@@ -1554,58 +1711,91 @@ func (d Decimal) tryInversePowIntU128(e int) (Decimal, error) {
 		return Decimal{}, errOverflow
 	}
 
-	if d.coef.u128.hi != 0 && e >= 4 {
-		// e >= 4 and u128.hi != 0 means the result will >= 2^256,
-		// which we can't use fast division. So we need to use big.Int instead
+	if e == 0 {
+		// d^0 = 1, so 1/d^0 = 1. Note: if d is 0, 0^0 is 1, 1/1 = 1.
+		// If d is 1, 1/1^e = 1.
+		// If d is -1, 1/(-1)^e depends on e. (-1)^e is 1 if e is even, -1 if e is odd.
+		// So 1/(-1)^e is 1 if e is even, -1 if e is odd.
+		// This matches the sign logic below for d=-1.
+		// For d=0, (0)^e is 0 for e > 0, division by zero. (0)^0=1.
+		if d.coef.IsZero() { // Handle 1/0^e for e > 0
+			return Decimal{}, ErrDivideByZero
+		}
+		return One, nil // 1/(d^0) = 1/1 = 1, assuming d != 0.
+	}
+
+	// Assuming e > 0 based on typical usage for inverse power integer exponent.
+	if e < 0 { // e.g. d^(-(-2)) = d^2, should be handled by tryPowIntU128
+		return Decimal{}, errors.New("negative exponent in tryInversePowIntU128 means positive power, use tryPowIntU128")
+	}
+
+	// Original check for (d.coef)^e potentially overflowing uint256
+	if d.coef.u128.High() != 0 && e >= 4 {
 		return Decimal{}, errOverflow
 	}
 
 	neg := d.neg
-	if e%2 == 0 {
+	if e%2 == 0 { // (-d)^(-e_even) = 1/(-d)^(e_even) = 1/(d^(e_even)) -> positive
 		neg = false
 	}
 
-	// d^(-e) = 10^(defaultPrec + d.prec * e) / (d.coef)^e (with defaultPrec digits after the decimal point)
-	// let exponent = defaultPrec + d.prec * e and B = (d.coef)^e
-	// --> d^(-e) = 10^exponent / B
-	// Can only use fastQuo if 10^exponent < 2^256 and B < 2^128
-	// --> defaultPrec + d.prec * e < log10(2) * 256 != 77
-	//
-	// Choose exponent <= 76 so if exponent > 38, it's safe to use 10^exponent = pow10[exponent - 38] * pow10[38]
-	// as 0 < exponent - 38 <= 38 and max(pow10) = 10^38
-	exponent := int(d.prec)*e + int(defaultPrec)
-	if exponent > 76 {
-		return Decimal{}, errOverflow
+	// Calculate P = d.prec * e + defaultPrec for the numerator 10^P
+	exponentNumerator := int(d.prec)*e + int(defaultPrec)
+	// This limit ensures 10^P can be constructed using pow10, possibly as pow10[P-38]*pow10[38]
+	if exponentNumerator > 76 || exponentNumerator < 0 { // exponentNumerator can be <0 if d.prec*e is very negative, though e is positive.
+		return Decimal{}, errOverflow // Numerator 10^P is too large or invalid
 	}
 
-	d256 := u256{lo: d.coef.u128.lo, hi: d.coef.u128.hi}
-	result, err := d256.pow(e)
+	// Calculate denominator B = (d.coef.u128)^e
+	baseForPow := uint256.NewFromUint128(d.coef.u128)
+	denominatorB_256, err := baseForPow.Pow(uint64(e))
 	if err != nil {
-		return Decimal{}, err
+		return Decimal{}, err // Error from Pow (e.g. overflow within Pow)
 	}
 
-	if !result.carry.IsZero() {
-		// can't use fastQuo to adjust result if result >= 2^128
-		return Decimal{}, errOverflow
+	// Denominator B must fit in uint128 for this fast path
+	if !denominatorB_256.High().IsZero() {
+		return Decimal{}, errOverflow // (d.coef.u128)^e is >= 2^128
+	}
+	denominatorB_128 := denominatorB_256.Low()
+
+	if denominatorB_128.IsZero() { // Division by zero if (d.coef.u128)^e = 0
+		return Decimal{}, ErrDivideByZero
 	}
 
-	if exponent <= 38 {
-		q, _, err := pow10[exponent].QuoRem(u128{hi: result.hi, lo: result.lo})
-		if err != nil {
-			return Decimal{}, err
+	var finalQuotient128 uint128.Uint128
+
+	if exponentNumerator <= 38 {
+		// Numerator is 10^exponentNumerator (fits in uint128)
+		numeratorN_128 := pow10[exponentNumerator]
+		// Division: (128-bit N) / (128-bit B)
+		q, _, errDiv := numeratorN_128.QuoRem(denominatorB_128)
+		if errDiv != nil { // Includes division by zero, though checked above for B_128
+			return Decimal{}, errDiv
 		}
+		finalQuotient128 = q
+	} else {
+		// Numerator is 10^exponentNumerator = pow10[exponentNumerator-38] * pow10[38] (may be 256-bit)
+		term1_128 := pow10[exponentNumerator-38]
+		term2_128 := pow10[38]
+		hiProdN, loProdN := term1_128.MulFull(term2_128)
+		numeratorN_256 := uint256.New(loProdN, hiProdN)
 
-		return newDecimal(neg, bintFromU128(q), defaultPrec), nil
+		// Division: (256-bit N) / (128-bit B)
+		// Convert 128-bit denominator to 256-bit for QuoRem
+		denominatorB_forDiv_256 := uint256.NewFromUint128(denominatorB_128)
+		q256, _, errDiv := numeratorN_256.QuoRem(denominatorB_forDiv_256)
+		if errDiv != nil {
+			return Decimal{}, errDiv
+		}
+		// Resultant quotient must fit in uint128
+		if !q256.High().IsZero() {
+			return Decimal{}, errOverflow
+		}
+		finalQuotient128 = q256.Low()
 	}
 
-	// exponent > 38 --> 10^exponent = pow10[exponent - 38] * pow10[38]
-	a256 := pow10[exponent-38].MulToU256(pow10[38])
-	q, _, err := a256.fastQuo(u128{hi: result.hi, lo: result.lo})
-	if err != nil {
-		return Decimal{}, err
-	}
-
-	return newDecimal(neg, bintFromU128(q), defaultPrec), nil
+	return newDecimal(neg, bintFromU128(finalQuotient128), defaultPrec), nil
 }
 
 // Sqrt returns the square root of d using Newton-Raphson method. (https://en.wikipedia.org/wiki/Newton%27s_method)
@@ -1639,44 +1829,109 @@ func (d Decimal) Sqrt() (Decimal, error) {
 	// overflow, fallback to big.Int
 	dBig := d.coef.GetBig()
 	factor := 2*defaultPrec - d.prec
-	coef := dBig.Mul(dBig, pow10[factor].ToBigInt())
+	coef := dBig.Mul(dBig, pow10[factor].Big())
 	return newDecimal(false, bintFromBigInt(coef.Sqrt(coef)), defaultPrec), nil
 }
-
 func (d Decimal) sqrtU128() (Decimal, error) {
-	factor := 2*defaultPrec - d.prec
+	// factor for scaling: d.coef * 10^factor to align precision for sqrt calculation
+	// The result of sqrt will have defaultPrec, so (sqrt_coef * 10^-defaultPrec)^2 = d.coef * 10^-d.prec
+	// sqrt_coef^2 * 10^(-2*defaultPrec) = d.coef * 10^-d.prec
+	// sqrt_coef^2 = d.coef * 10^(2*defaultPrec - d.prec)
+	// So, we calculate sqrt(d.coef * 10^factor) where factor = 2*defaultPrec - d.prec
+	factor := int(2*defaultPrec) - int(d.prec)
 
-	coef := d.coef.u128.MulToU256(pow10[factor])
-	if coef.carry.hi != 0 {
-		return Decimal{}, errOverflow
+	if factor < 0 || factor >= len(pow10) {
+		// This scaling factor is problematic, implies d.prec is too large relative to 2*defaultPrec
+		// or factor is too large for pow10 array. This scenario might need fallback to big.Int.
+		return Decimal{}, errors.New("scaling factor out of range for sqrtU128")
+	}
+	scaleVal := pow10[factor]
+
+	// Calculate scaled coefficient: d.coef.u128 * scaleVal
+	hiProd, loProd := d.coef.u128.MulFull(scaleVal)
+	scaledCoef256 := uint256.New(loProd, hiProd)
+
+	// Original code had a check: coef.carry.hi != 0. coef.carry was u128.
+	// This means the high 64 bits of the high 128 bits of the 256-bit product.
+	// Equivalent to checking if scaledCoef256 >= 2^(128+64) = 2^192.
+	if scaledCoef256.High().High() != 0 { // scaledCoef256.High() is u128, its .High() is uint64
+		return Decimal{}, errOverflow // Scaled coefficient is too large
 	}
 
-	//nolint:gosec // 0 <= coef.bitLen() < 256, so it's safe to convert to uint
-	bitLen := uint(coef.bitLen())
+	// Initial guess for Newton-Raphson method
+	// x_0 approx sqrt(scaledCoef256)
+	bitLen := scaledCoef256.BitLen() // Total bits in scaledCoef256
+	if bitLen == 0 {
+		return Zero, nil // sqrt(0) is 0
+	}
 
-	// initial guess = 2^((bitLen + 1) / 2) ≥ √coef
-	x := one128.Lsh((bitLen + 1) / 2)
+	// Initial guess x0. For sqrt(N), a common guess is 2^(bitLen(N)/2).
+	// x_u128 will store our guess, should be uint128 as final result is scaled to defaultPrec.
+	var x_u128 uint128.Uint128
+	shiftAmount := (uint(bitLen) + 1) / 2
+	if shiftAmount >= 128 { // Initial guess itself would overflow uint128 or be max value
+		// This case implies scaledCoef256 is very large, near 2^256.
+		// sqrt(2^256) = 2^128. So x_u128 should be max uint128 or handle this edge.
+		// For simplicity, if initial guess is >= 2^128, it might indicate an issue or need big.Int path.
+		// However, the result of sqrt is expected to fit in defaultPrec, which implies x_u128 should be < 2^128.
+		// Let's cap the shift if it's too large for Lsh on uint128(1).
+		if shiftAmount > 127 {
+			x_u128 = uint128.Max // A very large initial guess if N is huge
+		} else {
+			x_u128 = uint128.New(1, 0).Lsh(shiftAmount)
+		}
+	} else {
+		x_u128 = uint128.New(1, 0).Lsh(shiftAmount)
+	}
 
-	// Newton-Raphson method
+	// Newton-Raphson iteration: x_new = (x_old + scaledCoef256 / x_old) / 2
+	// We expect x_u128 to converge to a value whose square is scaledCoef256.
+	// The final result is then scaled by 10^-defaultPrec.
 	for {
-		// calculate x1 = (x + coef/x) / 2
-		y, _, err := coef.fastQuo(x)
-		if err != nil {
+		if x_u128.IsZero() { // Avoid division by zero if guess becomes 0
+			// This shouldn't happen if scaledCoef256 > 0 and initial guess > 0.
+			// If scaledCoef256 was 0, we'd have returned already.
+			return Decimal{}, errors.New("sqrt iteration led to zero guess")
+		}
+
+		// y = scaledCoef256 / x_u128
+		// Divisor x_u128 is uint128, convert to Uint256 for QuoRem
+		x_as_256 := uint256.NewFromUint128(x_u128)
+		y_u256, _, err := scaledCoef256.QuoRem(x_as_256)
+		if err != nil { // e.g. division by zero, though x_u128.IsZero() is checked
 			return Decimal{}, err
 		}
 
-		x1, err := x.Add(y)
-		if err != nil {
-			return Decimal{}, err
+		// y must fit in uint128 because x is converging to sqrt(scaledCoef256)
+		// and sqrt(scaledCoef256) should be representable as uint128 (after scaling)
+		if !y_u256.High().IsZero() {
+			// This implies x_u128 was too small, making y_u256 too large.
+			// This could happen if scaledCoef256 is very large, close to (2^128)^2 = 2^256.
+			// If y overflows u128, the iteration might be unstable or input is too big for u128 result.
+			return Decimal{}, errOverflow // y = scaledCoef/x does not fit in u128
+		}
+		y_u128 := y_u256.Low()
+
+		// x1 = (x + y) / 2
+		x1_u128_sum, carry := x_u128.AddCarry(y_u128, 0) // Assuming AddOverflow exists or use Add and check manually
+		if carry != 0 {                                  // (x+y) overflowed uint128
+			// This is problematic. If x and y are both large u128, their sum can exceed u128.Max.
+			// Then Rsh(1) would be on an incorrect sum.
+			// Fallback or error if sum overflows.
+			return Decimal{}, errOverflow // (x+y) overflows uint128
 		}
 
-		x1 = x1.Rsh(1)
-		if x1.Cmp(x) == 0 {
+		x1_u128 := x1_u128_sum.Rsh(1)
+
+		// Check for convergence
+		if x1_u128.Cmp(x_u128) == 0 {
+			x_u128 = x1_u128 // ensure the latest value is used if x1 slightly rounded down to x
 			break
 		}
-
-		x = x1
+		x_u128 = x1_u128
 	}
 
-	return newDecimal(false, bintFromU128(x), defaultPrec), nil
+	// The result x_u128 is the integer square root of (d.coef * 10^factor).
+	// This value corresponds to a Decimal with 'defaultPrec' precision.
+	return newDecimal(false, bintFromU128(x_u128), defaultPrec), nil
 }
