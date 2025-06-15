@@ -70,6 +70,7 @@ func TestNewFromHiLo(t *testing.T) {
 			d, err := NewFromHiLo(tc.neg, tc.hi, tc.lo, tc.prec)
 			if tc.wantErr != nil {
 				require.Equal(t, tc.wantErr, err)
+
 				return
 			}
 
@@ -160,6 +161,7 @@ func TestParse(t *testing.T) {
 			d, err := Parse(tc.input)
 			if tc.wantErr != nil {
 				require.Equal(t, tc.wantErr, err)
+
 				return
 			}
 
@@ -221,10 +223,12 @@ func TestMustParse(t *testing.T) {
 				require.PanicsWithError(t, tc.wantErr.Error(), func() {
 					MustParse(tc.s)
 				})
+
 				return
 			}
 
 			var d Decimal
+
 			require.NotPanics(t, func() {
 				d = MustParse(tc.s)
 			})
@@ -271,6 +275,7 @@ func TestNewFromInt64(t *testing.T) {
 			d, err := NewFromInt64(tc.input, tc.prec)
 			if tc.wantErr != nil {
 				require.Equal(t, tc.wantErr, err)
+
 				return
 			}
 
@@ -314,6 +319,7 @@ func TestMustFromInt64(t *testing.T) {
 				require.PanicsWithError(t, tc.wantErr.Error(), func() {
 					_ = MustFromInt64(tc.input, tc.prec)
 				})
+
 				return
 			}
 
@@ -351,6 +357,7 @@ func TestNewFromUint64(t *testing.T) {
 			d, err := NewFromUint64(tc.input, tc.prec)
 			if tc.wantErr != nil {
 				require.Equal(t, tc.wantErr, err)
+
 				return
 			}
 
@@ -389,6 +396,7 @@ func TestMustFromUint64(t *testing.T) {
 				require.PanicsWithError(t, tc.wantErr.Error(), func() {
 					_ = MustFromUint64(tc.input, tc.prec)
 				})
+
 				return
 			}
 
@@ -427,6 +435,7 @@ func TestNewFromFloat64(t *testing.T) {
 			d, err := NewFromFloat64(tc.input)
 			if tc.wantErr != nil {
 				require.EqualError(t, tc.wantErr, err.Error())
+
 				return
 			}
 
@@ -465,6 +474,7 @@ func TestMustFromFloat64(t *testing.T) {
 				require.PanicsWithError(t, tc.wantErr.Error(), func() {
 					_ = MustFromFloat64(tc.input)
 				})
+
 				return
 			}
 
@@ -930,6 +940,7 @@ func TestDiv(t *testing.T) {
 			c, err := a.Div(b)
 			if tc.wantErr != nil {
 				require.Equal(t, tc.wantErr, err)
+
 				return
 			}
 
@@ -1013,6 +1024,7 @@ func TestDivWithCustomPrecision(t *testing.T) {
 			a, err := Parse(tc.a)
 			if tc.parseErr != nil {
 				require.Equal(t, tc.parseErr, err)
+
 				return
 			}
 
@@ -1027,6 +1039,7 @@ func TestDivWithCustomPrecision(t *testing.T) {
 			c, err := a.Div(b)
 			if tc.wantErr != nil {
 				require.Equal(t, tc.wantErr, err)
+
 				return
 			}
 
@@ -1095,6 +1108,7 @@ func TestDiv64(t *testing.T) {
 			c, err := a.Div64(tc.b)
 			if tc.wantErr != nil {
 				require.Equal(t, tc.wantErr, err)
+
 				return
 			}
 
@@ -1157,6 +1171,7 @@ func TestQuoRem(t *testing.T) {
 			q, r, err := a.QuoRem(b)
 			if tc.wantErr != nil {
 				require.Equal(t, tc.wantErr, err)
+
 				return
 			}
 
@@ -1206,6 +1221,7 @@ func TestMod(t *testing.T) {
 			r, err := a.Mod(b)
 			if tc.wantErr != nil {
 				require.Equal(t, tc.wantErr, err)
+
 				return
 			}
 
@@ -1331,24 +1347,28 @@ func TestComparisionUtils(t *testing.T) {
 			// test less than
 			c = a.LessThan(b)
 			cc = aa.LessThan(bb)
+
 			require.Equal(t, tc.wantLT, c)
 			require.Equal(t, cc, c)
 
 			// test less than or equal
 			c = a.LessThanOrEqual(b)
 			cc = aa.LessThanOrEqual(bb)
+
 			require.Equal(t, tc.wantLTE, c)
 			require.Equal(t, cc, c)
 
 			// test greater than
 			c = a.GreaterThan(b)
 			cc = aa.GreaterThan(bb)
+
 			require.Equal(t, tc.wantGT, c)
 			require.Equal(t, cc, c)
 
 			// test greater than or equal
 			c = a.GreaterThanOrEqual(b)
 			cc = aa.GreaterThanOrEqual(bb)
+
 			require.Equal(t, tc.wantGTE, c)
 			require.Equal(t, cc, c)
 		})
@@ -1375,6 +1395,7 @@ func TestMaxMin(t *testing.T) {
 			for i, s := range tc.list {
 				d, err := Parse(s)
 				require.NoError(t, err)
+
 				list[i] = d
 			}
 
@@ -1460,6 +1481,7 @@ func TestSign(t *testing.T) {
 				require.True(t, a.IsZero())
 				require.False(t, a.IsNeg())
 				require.False(t, a.IsPos())
+
 				return
 			}
 
@@ -1798,13 +1820,11 @@ func TestRoundHalfAwayFromZero(t *testing.T) {
 
 			// make sure a is immutable
 			require.Equal(t, aStr, a.String())
-
 			// cross check with shopspring/decimal
 			// NOTE: shopspring/decimal roundup somehow similars to ceil, not round half up away from zero
 			// Waiting this one to be merged: https://github.com/shopspring/decimal/pull/378
 			// aa := decimal.RequireFromString(tc.a)
 			// aa = aa.RoundUp(int32(tc.prec))
-
 			// require.Equal(t, aa.String(), a.String())
 		})
 	}
@@ -1913,13 +1933,11 @@ func TestRoundHalfTowardZero(t *testing.T) {
 
 			// make sure a is immutable
 			require.Equal(t, aStr, a.String())
-
 			// cross check with shopspring/decimal
 			// NOTE: shopspring/decimal roundup somehow similars to ceil, not round half up away from zero
 			// Waiting this one to be merged: https://github.com/shopspring/decimal/pull/378
 			// aa := decimal.RequireFromString(tc.a)
 			// aa = aa.RoundUp(int32(tc.prec))
-
 			// require.Equal(t, aa.String(), a.String())
 		})
 	}
@@ -1974,7 +1992,7 @@ func TestFloor(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
-		t.Run(fmt.Sprintf("%s.floor()", tc.a), func(t *testing.T) {
+		t.Run(tc.a+".floor()", func(t *testing.T) {
 			a, err := Parse(tc.a)
 			require.NoError(t, err)
 
@@ -2046,7 +2064,7 @@ func TestCeil(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
-		t.Run(fmt.Sprintf("%s.floor()", tc.a), func(t *testing.T) {
+		t.Run(tc.a+".floor()", func(t *testing.T) {
 			a, err := Parse(tc.a)
 			require.NoError(t, err)
 
@@ -2277,7 +2295,7 @@ func TestTrimTrailingZeros(t *testing.T) {
 	}
 
 	for i, tc := range testcases {
-		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			// d := newDecimal{neg: tc.neg, coef: tc.coef, prec: tc.prec}
 			d := newDecimal(tc.neg, tc.coef, tc.prec)
 			d1 := newDecimal(tc.neg, tc.coef, tc.prec)
@@ -2352,6 +2370,7 @@ func TestPowToIntPart(t *testing.T) {
 			c, err := a.PowToIntPart(b)
 			if tc.wantErr != nil {
 				require.Equal(t, tc.wantErr, err)
+
 				return
 			}
 
@@ -2371,6 +2390,7 @@ func TestPowToIntPart(t *testing.T) {
 			// shopspring/decimal: 0^0 is undefined and will return an error
 			if tc.a == "0" && b.Trunc(0).IsZero() {
 				require.EqualError(t, err, "cannot represent undefined value of 0**0")
+
 				return
 			}
 
@@ -2402,6 +2422,7 @@ func TestRandomPowToIntPart(t *testing.T) {
 	for _, input := range inputs {
 		t.Run(fmt.Sprintf("PowToIntPart(%s)", input), func(t *testing.T) {
 			a := MustParse(input)
+
 			var i float64
 
 			for ; i <= 100; i += 0.1 {
@@ -2512,7 +2533,7 @@ func TestRandomPow(t *testing.T) {
 		t.Run(fmt.Sprintf("pow(%s)", input), func(t *testing.T) {
 			a := MustParse(input)
 
-			for i := 0; i <= 1000; i++ {
+			for i := range 1001 {
 				b := a.PowInt(i)
 
 				aa := decimal.RequireFromString(input)
@@ -2586,6 +2607,7 @@ func TestPowInt32(t *testing.T) {
 			b, err := a.PowInt32(tc.b)
 			if tc.wantErr != nil {
 				require.Equal(t, tc.wantErr, err)
+
 				return
 			}
 
@@ -2603,6 +2625,7 @@ func TestPowInt32(t *testing.T) {
 			// shopspring/decimal: 0^0 is undefined and will return an error
 			if tc.a == "0" && tc.b == 0 {
 				require.EqualError(t, err, "cannot represent undefined value of 0**0")
+
 				return
 			}
 
@@ -2636,7 +2659,7 @@ func TestRandomPowInt32(t *testing.T) {
 		t.Run(fmt.Sprintf("pow(%s)", input), func(t *testing.T) {
 			a := MustParse(input)
 
-			for i := 0; i <= 1000; i++ {
+			for i := range 1001 {
 				b, err := a.PowInt32(int32(i))
 				require.NoError(t, err)
 
@@ -2700,6 +2723,7 @@ func TestSqrt(t *testing.T) {
 			b, err := a.Sqrt()
 			if tc.wantErr != nil {
 				require.Equal(t, tc.wantErr, err)
+
 				return
 			}
 
@@ -2772,6 +2796,7 @@ func TestInt64(t *testing.T) {
 			got, err := a.Int64()
 			if tc.wantErr != nil {
 				require.Equal(t, tc.wantErr, err)
+
 				return
 			}
 
@@ -2943,6 +2968,7 @@ func TestHiLo(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(fmt.Sprintf("hiLo(%s)", tc.a), func(t *testing.T) {
 			a := MustParse(tc.a)
+
 			neg, hi, lo, prec, ok := a.ToHiLo()
 			if tc.neg != neg || tc.hi != hi || tc.lo != lo || tc.prec != prec || tc.ok != ok {
 				t.Errorf("got: %v, %v, %v, %v, %v; want: %v, %v, %v, %v, %v", neg, hi, lo, prec, ok, tc.neg, tc.hi, tc.lo, tc.prec, tc.ok)

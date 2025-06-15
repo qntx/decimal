@@ -12,21 +12,17 @@ import (
 )
 
 var (
-	// defaultPrec is the default number of digits after the decimal point
-	// if not specified
+	// if not specified.
 	defaultPrec uint8 = 19
 
-	// maxPrec is the maximum number of digits after the decimal point
+	// maxPrec is the maximum number of digits after the decimal point.
 	maxPrec uint8 = 19
 
-	// maxStrLen is the maximum length of string input when using Parse/MustParse
-	// set it to 200 so string length value can fit in 1 byte (for MarshalBinary).
-	// Also such that big number (more than 200 digits) is unrealistic in financial system
-	// which this library is mainly designed for
+	// which this library is mainly designed for.
 	maxStrLen = 200
 )
 
-// pre-computed values
+// pre-computed values.
 var pow10 = [39]uint128.Uint128{
 	uint128.NewFromUint64(1),                                        // 10^0
 	uint128.NewFromUint64(10),                                       // 10^1
@@ -93,14 +89,13 @@ var pow10Big = [20]*big.Int{
 }
 
 var (
-	errOverflow = fmt.Errorf("overflow")
+	errOverflow = errors.New("overflow")
 
-	// ErrPrecOutOfRange is returned when the decimal precision is greater than the default precision
-	// default precision can be configured using SetDefaultPrecision, and its value is up to 19
+	// default precision can be configured using SetDefaultPrecision, and its value is up to 19.
 	ErrPrecOutOfRange = fmt.Errorf("precision out of range. Only support maximum %d digits after the decimal point", defaultPrec)
 
-	// ErrEmptyString is returned when the input string is empty
-	ErrEmptyString = fmt.Errorf("can't parse empty string")
+	// ErrEmptyString is returned when the input string is empty.
+	ErrEmptyString = errors.New("can't parse empty string")
 
 	// ErrMaxStrLen is returned when the input string exceeds the maximum length
 	// Maximum length is arbitrarily set to 200 so string length value can fit in 1 byte (for MarshalBinary).
@@ -110,26 +105,25 @@ var (
 
 	// ErrInvalidFormat is returned when the input string is not in the correct format
 	// It doesn't support scientific notation, such as 1e-2, 1.23e4, etc.
-	ErrInvalidFormat = fmt.Errorf("invalid format")
+	ErrInvalidFormat = errors.New("invalid format")
 
-	// ErrDivideByZero is returned when dividing by zero
-	ErrDivideByZero = fmt.Errorf("can't divide by zero")
+	// ErrDivideByZero is returned when dividing by zero.
+	ErrDivideByZero = errors.New("can't divide by zero")
 
-	// ErrSqrtNegative is returned when calculating square root of negative number
-	ErrSqrtNegative = fmt.Errorf("can't calculate square root of negative number")
+	// ErrSqrtNegative is returned when calculating square root of negative number.
+	ErrSqrtNegative = errors.New("can't calculate square root of negative number")
 
-	// ErrInvalidBinaryData is returned when unmarshalling invalid binary data
-	// The binary data should follow the format as described in MarshalBinary
-	ErrInvalidBinaryData = fmt.Errorf("invalid binary data")
+	// The binary data should follow the format as described in MarshalBinary.
+	ErrInvalidBinaryData = errors.New("invalid binary data")
 
-	// ErrZeroPowNegative is returned when raising zero to a negative power
-	ErrZeroPowNegative = fmt.Errorf("can't raise zero to a negative power")
+	// ErrZeroPowNegative is returned when raising zero to a negative power.
+	ErrZeroPowNegative = errors.New("can't raise zero to a negative power")
 
 	// ErrExponentTooLarge is returned when the exponent is too large and becomes impractical.
-	ErrExponentTooLarge = fmt.Errorf("exponent is too large. Must be less than or equal math.MaxInt32")
+	ErrExponentTooLarge = errors.New("exponent is too large. Must be less than or equal math.MaxInt32")
 
-	// ErrIntPartOverflow is returned when the integer part of the decimal is too large to fit in int64
-	ErrIntPartOverflow = fmt.Errorf("integer part is too large to fit in int64")
+	// ErrIntPartOverflow is returned when the integer part of the decimal is too large to fit in int64.
+	ErrIntPartOverflow = errors.New("integer part is too large to fit in int64")
 )
 
 var (
@@ -152,13 +146,7 @@ type Decimal struct {
 	prec uint8
 }
 
-// SetDefaultPrecision changes the default precision for decimal numbers in the package.
-// Max precision is 19 and is also default.
-//
-// This function is particularly useful when you want to have your precision of the deicmal smaller than 19
-// across the whole application. It should be called only once at the beginning of your application
-//
-// Panics if the new precision is greater than 19 (maxPrec) or new precision is 0
+// Panics if the new precision is greater than 19 (maxPrec) or new precision is 0.
 func SetDefaultPrecision(prec uint8) {
 	if prec > maxPrec {
 		panic(fmt.Sprintf("precision out of range. Only allow maximum %d digits after the decimal points", maxPrec))
@@ -171,13 +159,14 @@ func SetDefaultPrecision(prec uint8) {
 	defaultPrec = prec
 }
 
-// NewFromHiLo returns a decimal from 128-bit unsigned integer (hi,lo)
+// NewFromHiLo returns a decimal from 128-bit unsigned integer (hi,lo).
 func NewFromHiLo(neg bool, hi uint64, lo uint64, prec uint8) (Decimal, error) {
 	if prec > defaultPrec {
 		return Decimal{}, ErrPrecOutOfRange
 	}
 
 	coef := uint128.New(lo, hi)
+
 	return newDecimal(neg, bintFromU128(coef), prec), nil
 }
 
@@ -196,8 +185,7 @@ func newDecimal(neg bool, coef bint, prec uint8) Decimal {
 	return Decimal{neg: neg, coef: coef, prec: prec}
 }
 
-// NewFromUint64 returns a decimal which equals to coef / 10^prec and coef is an uint64
-// Trailing zeros wll be removed and the prec will also be adjusted
+// Trailing zeros wll be removed and the prec will also be adjusted.
 func NewFromUint64(coef uint64, prec uint8) (Decimal, error) {
 	if prec > defaultPrec {
 		return Decimal{}, ErrPrecOutOfRange
@@ -206,7 +194,7 @@ func NewFromUint64(coef uint64, prec uint8) (Decimal, error) {
 	return newDecimal(false, bintFromU64(coef), prec), nil
 }
 
-// MustFromUint64 similars to NewFromUint64, but panics instead of returning error
+// MustFromUint64 similars to NewFromUint64, but panics instead of returning error.
 func MustFromUint64(coef uint64, prec uint8) Decimal {
 	d, err := NewFromUint64(coef, prec)
 	if err != nil {
@@ -216,8 +204,7 @@ func MustFromUint64(coef uint64, prec uint8) Decimal {
 	return d
 }
 
-// NewFromInt64 returns a decimal which equals to coef / 10^prec and coef is an int64.
-// Trailing zeros wll be removed and the prec will also be adjusted
+// Trailing zeros wll be removed and the prec will also be adjusted.
 func NewFromInt64(coef int64, prec uint8) (Decimal, error) {
 	var neg bool
 	if coef < 0 {
@@ -233,7 +220,7 @@ func NewFromInt64(coef int64, prec uint8) (Decimal, error) {
 	return newDecimal(neg, bintFromU64(uint64(coef)), prec), nil
 }
 
-// MustFromInt64 similars to NewFromInt64, but panics instead of returning error
+// MustFromInt64 similars to NewFromInt64, but panics instead of returning error.
 func MustFromInt64(coef int64, prec uint8) Decimal {
 	d, err := NewFromInt64(coef, prec)
 	if err != nil {
@@ -259,6 +246,7 @@ func NewFromFloat64(f float64) (Decimal, error) {
 	}
 
 	s := strconv.FormatFloat(f, 'f', -1, 64)
+
 	d, err := Parse(s)
 	if err != nil {
 		return Decimal{}, fmt.Errorf("can't parse float: %w", err)
@@ -267,7 +255,7 @@ func NewFromFloat64(f float64) (Decimal, error) {
 	return d, nil
 }
 
-// MustFromFloat64 similars to NewFromFloat64, but panics instead of returning error
+// MustFromFloat64 similars to NewFromFloat64, but panics instead of returning error.
 func MustFromFloat64(f float64) Decimal {
 	d, err := NewFromFloat64(f)
 	if err != nil {
@@ -307,6 +295,7 @@ func (d Decimal) Int64() (int64, error) {
 //	e.g. 123456789012345678901234567890123456789.9999999999999999999 -> 123456789012345680000000000000000000000
 func (d Decimal) InexactFloat64() float64 {
 	f, _ := strconv.ParseFloat(d.String(), 64)
+
 	return f
 }
 
@@ -315,6 +304,7 @@ func (d Decimal) ToHiLo() (neg bool, hi uint64, lo uint64, prec uint8, ok bool) 
 	if d.coef.bigInt != nil {
 		return
 	}
+
 	return d.neg, d.coef.u128.High(), d.coef.u128.Low(), d.prec, true
 }
 
@@ -348,7 +338,7 @@ func MustParse(s string) Decimal {
 	return d
 }
 
-// Add returns d + e
+// Add returns d + e.
 func (d Decimal) Add(e Decimal) Decimal {
 	dcoef, ecoef := d.coef, e.coef
 
@@ -376,15 +366,17 @@ func (d Decimal) Add(e Decimal) Decimal {
 	case 1:
 		// dcoef > ecoef, subtract can't overflow
 		coef, _ := dcoef.Sub(ecoef)
+
 		return newDecimal(d.neg, coef, prec)
 	default:
 		// dcoef <= ecoef
 		coef, _ := ecoef.Sub(dcoef)
+
 		return newDecimal(e.neg, coef, prec)
 	}
 }
 
-// Add64 returns d + e where e is a uint64
+// Add64 returns d + e where e is a uint64.
 func (d Decimal) Add64(e uint64) Decimal {
 	ecoef := bintFromU64(e).Mul(bintFromU128(pow10[d.prec]))
 
@@ -407,10 +399,11 @@ func (d Decimal) Add64(e uint64) Decimal {
 	}
 
 	dcoef := d.coef.Add(ecoef)
+
 	return newDecimal(false, dcoef, d.prec)
 }
 
-// Sub returns d - e
+// Sub returns d - e.
 func (d Decimal) Sub(e Decimal) Decimal {
 	dcoef, ecoef := d.coef, e.coef
 
@@ -432,6 +425,7 @@ func (d Decimal) Sub(e Decimal) Decimal {
 	if d.neg != e.neg {
 		// different sign
 		coef := dcoef.Add(ecoef)
+
 		return newDecimal(d.neg, coef, prec)
 	}
 
@@ -440,15 +434,17 @@ func (d Decimal) Sub(e Decimal) Decimal {
 	case 1:
 		// dcoef > ecoef, subtract can't overflow
 		coef, _ := dcoef.Sub(ecoef)
+
 		return newDecimal(d.neg, coef, prec)
 	default:
 		// dcoef <= ecoef
 		coef, _ := ecoef.Sub(dcoef)
+
 		return newDecimal(!d.neg, coef, prec)
 	}
 }
 
-// Sub64 returns d - e where e is a uint64
+// Sub64 returns d - e where e is a uint64.
 func (d Decimal) Sub64(e uint64) Decimal {
 	ecoef := bintFromU64(e).Mul(bintFromU128(pow10[d.prec]))
 
@@ -489,11 +485,13 @@ func (d Decimal) Mul(e Decimal) Decimal {
 	eBig := e.coef.GetBig()
 
 	dBig.Mul(dBig, eBig)
+
 	if prec <= defaultPrec {
 		return newDecimal(neg, bintFromBigInt(dBig), prec)
 	}
 
 	q, _ := new(big.Int).QuoRem(dBig, pow10[prec-defaultPrec].Big(), new(big.Int))
+
 	return newDecimal(neg, bintFromBigInt(q), defaultPrec)
 }
 
@@ -569,10 +567,7 @@ func (d Decimal) Mul64(v uint64) Decimal {
 	return newDecimal(d.neg, bintFromBigInt(dBig), d.prec)
 }
 
-// Div returns d / e.
-// If the result has more than defaultPrec fraction digits, it will be truncated to defaultPrec digits.
-//
-// Returns divide by zero error when e is zero
+// Returns divide by zero error when e is zero.
 func (d Decimal) Div(e Decimal) (Decimal, error) {
 	if e.coef.IsZero() {
 		return Decimal{}, ErrDivideByZero
@@ -595,6 +590,7 @@ func (d Decimal) Div(e Decimal) (Decimal, error) {
 
 	dBig.Mul(dBig, pow10[factor].Big())
 	dBig.Div(dBig, eBig)
+
 	return newDecimal(neg, bintFromBigInt(dBig), defaultPrec), nil
 }
 
@@ -618,6 +614,7 @@ func tryDivU128(d, e Decimal, neg bool) (Decimal, error) {
 	if divisorU128.IsZero() {
 		return Decimal{}, ErrDivideByZero // Or an appropriate error for division by zero in this context
 	}
+
 	divisor256 := uint256.NewFromUint128(divisorU128)
 
 	// Perform division: dividend256 / divisor256
@@ -639,10 +636,7 @@ func tryDivU128(d, e Decimal, neg bool) (Decimal, error) {
 	return newDecimal(neg, bintFromU128(finalQuo128), defaultPrec), nil
 }
 
-// Div64 returns d / e where e is a uint64.
-// If the result has more than defaultPrec fraction digits, it will be truncated to defaultPrec digits.
-//
-// Returns divide by zero error when e is zero
+// Returns divide by zero error when e is zero.
 func (d Decimal) Div64(v uint64) (Decimal, error) {
 	if v == 0 {
 		return Decimal{}, ErrDivideByZero
@@ -672,9 +666,9 @@ func (d Decimal) Div64(v uint64) (Decimal, error) {
 		// and the quotient fits within a uint128.Uint128.
 		if errQuoRem == nil && q256.High().IsZero() {
 			finalQuo128 := q256.Low()
+
 			return newDecimal(d.neg, bintFromU128(finalQuo128), defaultPrec), nil
 		}
-
 		// If quotient overflows uint128 (q256.High() != 0) or if errQuoRem was unexpectedly non-nil,
 		// fall through to *big.Int arithmetic.
 		// overflow, try with *big.Int
@@ -691,12 +685,7 @@ func (d Decimal) Div64(v uint64) (Decimal, error) {
 	return newDecimal(d.neg, bintFromBigInt(dBig), defaultPrec), nil
 }
 
-// QuoRem returns q and r where
-// - q = d / e and  q is an integer
-// - r = d - q * e (r < e and r has the same sign as d)
-//
-// The implementation is similar to C's fmod function.
-// Returns divide by zero error when e is zero
+// Returns divide by zero error when e is zero.
 func (d Decimal) QuoRem(e Decimal) (Decimal, Decimal, error) {
 	if e.coef.IsZero() {
 		return Decimal{}, Decimal{}, ErrDivideByZero
@@ -721,6 +710,7 @@ func (d Decimal) QuoRem(e Decimal) (Decimal, Decimal, error) {
 
 	q = newDecimal(d.neg != e.neg, bintFromBigInt(qBig), 0)
 	r = newDecimal(d.neg, bintFromBigInt(rBig), factor)
+
 	return q, r, nil
 }
 
@@ -752,6 +742,7 @@ func tryQuoRemU128(d, e Decimal) (Decimal, Decimal, error) {
 
 		// Scale divisor e to common precision 'factor'
 		scaleByE := pow10[factor-e.prec]
+
 		divisorU128, err = e.coef.u128.Mul(scaleByE)
 		if err != nil {
 			// Scaled divisor overflows uint128. This path cannot proceed.
@@ -798,13 +789,14 @@ func tryQuoRemU128(d, e Decimal) (Decimal, Decimal, error) {
 	return q, r, nil
 }
 
-// Mod is similar to [Decimal.QuoRem] but only returns the remainder
+// Mod is similar to [Decimal.QuoRem] but only returns the remainder.
 func (d Decimal) Mod(e Decimal) (Decimal, error) {
 	_, r, err := d.QuoRem(e)
+
 	return r, err
 }
 
-// Prec returns decimal precision as an integer
+// Prec returns decimal precision as an integer.
 func (d Decimal) Prec() int {
 	return int(d.prec)
 }
@@ -976,12 +968,12 @@ func (d Decimal) rescale(prec uint8) Decimal {
 	return Decimal{neg: dTrim.neg, coef: coef, prec: prec}
 }
 
-// Neg returns -d
+// Neg returns -d.
 func (d Decimal) Neg() Decimal {
 	return newDecimal(!d.neg, d.coef, d.prec)
 }
 
-// Abs returns |d|
+// Abs returns |d|.
 func (d Decimal) Abs() Decimal {
 	return newDecimal(false, d.coef, d.prec)
 }
@@ -1047,6 +1039,7 @@ func (d Decimal) RoundBank(prec uint8) Decimal {
 
 	if !d.coef.overflow() {
 		var err error
+
 		q, r := d.coef.u128.QuoRem64(factor.Low())
 		if lo < r || (lo == r && q.Low()%2 == 1) {
 			q, err = q.Add64(1)
@@ -1089,6 +1082,7 @@ func (d Decimal) RoundAwayFromZero(prec uint8) Decimal {
 
 	if !d.coef.overflow() {
 		var err error
+
 		q, r := d.coef.u128.QuoRem64(factor.Low())
 
 		if r != 0 {
@@ -1129,6 +1123,7 @@ func (d Decimal) RoundHAZ(prec uint8) Decimal {
 
 	if !d.coef.overflow() {
 		var err error
+
 		q, r := d.coef.u128.QuoRem64(factor.Low())
 		if half.Cmp64(r) <= 0 {
 			q, err = q.Add64(1)
@@ -1169,6 +1164,7 @@ func (d Decimal) RoundHTZ(prec uint8) Decimal {
 
 	if !d.coef.overflow() {
 		var err error
+
 		q, r := d.coef.u128.QuoRem64(factor.Low())
 		if half.Cmp64(r) < 0 {
 			q, err = q.Add64(1)
@@ -1199,6 +1195,7 @@ func (d Decimal) Floor() Decimal {
 
 	if !d.coef.overflow() {
 		var err error
+
 		q, r := d.coef.u128.QuoRem64(pow10[d.prec].Low())
 
 		// add 1 if it's negative and there's a remainder, e.g. -1.5 -> -2
@@ -1231,6 +1228,7 @@ func (d Decimal) Ceil() Decimal {
 
 	if !d.coef.overflow() {
 		var err error
+
 		q, r := d.coef.u128.QuoRem64(pow10[d.prec].Low())
 
 		// add 1 if it's positive and there's a remainder, e.g. 1.5 -> 2
@@ -1270,12 +1268,14 @@ func (d Decimal) Trunc(prec uint8) Decimal {
 
 	if !d.coef.overflow() {
 		q, _ := d.coef.u128.QuoRem64(factor.Low())
+
 		return newDecimal(d.neg, bintFromU128(q), prec)
 	}
 
 	// overflow, fallback to big.Int
 	dBig := d.coef.GetBig()
 	q := new(big.Int).Quo(dBig, factor.Big())
+
 	return newDecimal(d.neg, bintFromBigInt(q), prec)
 }
 
@@ -1323,6 +1323,7 @@ func (d Decimal) trimTrailingZeros() Decimal {
 
 	d.coef = bintFromU128(coef)
 	d.prec = prec
+
 	return d
 }
 
@@ -1507,6 +1508,7 @@ func (d Decimal) PowInt(e int) Decimal {
 	dBig := dTrim.coef.GetBig()
 	factor := 0
 	powPrecision := int(dTrim.prec) * e
+
 	if powPrecision >= int(defaultPrec) {
 		factor = powPrecision - int(defaultPrec)
 		powPrecision = int(defaultPrec)
@@ -1574,6 +1576,7 @@ func (d Decimal) PowInt32(e int32) (Decimal, error) {
 	dBig := dTrim.coef.GetBig()
 
 	var factor int32
+
 	powPrecision := int32(dTrim.prec) * e
 	if powPrecision >= int32(defaultPrec) {
 		factor = powPrecision - int32(defaultPrec)
@@ -1593,7 +1596,7 @@ func (d Decimal) PowInt32(e int32) (Decimal, error) {
 	return newDecimal(neg, bintFromBigInt(qBig), uint8(powPrecision)), nil
 }
 
-// powIntInverse returns d^(-e), with e > 0
+// powIntInverse returns d^(-e), with e > 0.
 func (d Decimal) powIntInverse(e int) Decimal {
 	q, err := d.tryInversePowIntU128(e)
 	if err == nil {
@@ -1629,6 +1632,7 @@ func (d Decimal) tryPowIntU128(e int) (Decimal, error) {
 		// Assuming 1 with precision 0 for d^0.
 		return One, nil
 	}
+
 	if e == 1 {
 		return d, nil
 	}
@@ -1678,7 +1682,9 @@ func (d Decimal) tryPowIntU128(e int) (Decimal, error) {
 			// Quotient is too large to fit in Uint128, consider it an overflow.
 			return Decimal{}, errOverflow
 		}
+
 		finalCoeff128 := result256.Low()
+
 		return newDecimal(neg, bintFromU128(finalCoeff128), uint8(exponentPrec)), nil
 	}
 
@@ -1702,7 +1708,9 @@ func (d Decimal) tryPowIntU128(e int) (Decimal, error) {
 	if !q256.High().IsZero() {
 		return Decimal{}, errOverflow
 	}
+
 	finalCoeff128 := q256.Low()
+
 	return newDecimal(neg, bintFromU128(finalCoeff128), defaultPrec), nil
 }
 
@@ -1721,6 +1729,7 @@ func (d Decimal) tryInversePowIntU128(e int) (Decimal, error) {
 		if d.coef.IsZero() { // Handle 1/0^e for e > 0
 			return Decimal{}, ErrDivideByZero
 		}
+
 		return One, nil // 1/(d^0) = 1/1 = 1, assuming d != 0.
 	}
 
@@ -1748,6 +1757,7 @@ func (d Decimal) tryInversePowIntU128(e int) (Decimal, error) {
 
 	// Calculate denominator B = (d.coef.u128)^e
 	baseForPow := uint256.NewFromUint128(d.coef.u128)
+
 	denominatorB_256, err := baseForPow.Pow(uint64(e))
 	if err != nil {
 		return Decimal{}, err // Error from Pow (e.g. overflow within Pow)
@@ -1757,6 +1767,7 @@ func (d Decimal) tryInversePowIntU128(e int) (Decimal, error) {
 	if !denominatorB_256.High().IsZero() {
 		return Decimal{}, errOverflow // (d.coef.u128)^e is >= 2^128
 	}
+
 	denominatorB_128 := denominatorB_256.Low()
 
 	if denominatorB_128.IsZero() { // Division by zero if (d.coef.u128)^e = 0
@@ -1773,6 +1784,7 @@ func (d Decimal) tryInversePowIntU128(e int) (Decimal, error) {
 		if errDiv != nil { // Includes division by zero, though checked above for B_128
 			return Decimal{}, errDiv
 		}
+
 		finalQuotient128 = q
 	} else {
 		// Numerator is 10^exponentNumerator = pow10[exponentNumerator-38] * pow10[38] (may be 256-bit)
@@ -1784,6 +1796,7 @@ func (d Decimal) tryInversePowIntU128(e int) (Decimal, error) {
 		// Division: (256-bit N) / (128-bit B)
 		// Convert 128-bit denominator to 256-bit for QuoRem
 		denominatorB_forDiv_256 := uint256.NewFromUint128(denominatorB_128)
+
 		q256, _, errDiv := numeratorN_256.QuoRem(denominatorB_forDiv_256)
 		if errDiv != nil {
 			return Decimal{}, errDiv
@@ -1792,6 +1805,7 @@ func (d Decimal) tryInversePowIntU128(e int) (Decimal, error) {
 		if !q256.High().IsZero() {
 			return Decimal{}, errOverflow
 		}
+
 		finalQuotient128 = q256.Low()
 	}
 
@@ -1830,6 +1844,7 @@ func (d Decimal) Sqrt() (Decimal, error) {
 	dBig := d.coef.GetBig()
 	factor := 2*defaultPrec - d.prec
 	coef := dBig.Mul(dBig, pow10[factor].Big())
+
 	return newDecimal(false, bintFromBigInt(coef.Sqrt(coef)), defaultPrec), nil
 }
 func (d Decimal) sqrtU128() (Decimal, error) {
@@ -1845,6 +1860,7 @@ func (d Decimal) sqrtU128() (Decimal, error) {
 		// or factor is too large for pow10 array. This scenario might need fallback to big.Int.
 		return Decimal{}, errors.New("scaling factor out of range for sqrtU128")
 	}
+
 	scaleVal := pow10[factor]
 
 	// Calculate scaled coefficient: d.coef.u128 * scaleVal
@@ -1868,6 +1884,7 @@ func (d Decimal) sqrtU128() (Decimal, error) {
 	// Initial guess x0. For sqrt(N), a common guess is 2^(bitLen(N)/2).
 	// x_u128 will store our guess, should be uint128 as final result is scaled to defaultPrec.
 	var x_u128 uint128.Uint128
+
 	shiftAmount := (uint(bitLen) + 1) / 2
 	if shiftAmount >= 128 { // Initial guess itself would overflow uint128 or be max value
 		// This case implies scaledCoef256 is very large, near 2^256.
@@ -1897,6 +1914,7 @@ func (d Decimal) sqrtU128() (Decimal, error) {
 		// y = scaledCoef256 / x_u128
 		// Divisor x_u128 is uint128, convert to Uint256 for QuoRem
 		x_as_256 := uint256.NewFromUint128(x_u128)
+
 		y_u256, _, err := scaledCoef256.QuoRem(x_as_256)
 		if err != nil { // e.g. division by zero, though x_u128.IsZero() is checked
 			return Decimal{}, err
@@ -1910,6 +1928,7 @@ func (d Decimal) sqrtU128() (Decimal, error) {
 			// If y overflows u128, the iteration might be unstable or input is too big for u128 result.
 			return Decimal{}, errOverflow // y = scaledCoef/x does not fit in u128
 		}
+
 		y_u128 := y_u256.Low()
 
 		// x1 = (x + y) / 2
@@ -1926,8 +1945,10 @@ func (d Decimal) sqrtU128() (Decimal, error) {
 		// Check for convergence
 		if x1_u128.Cmp(x_u128) == 0 {
 			x_u128 = x1_u128 // ensure the latest value is used if x1 slightly rounded down to x
+
 			break
 		}
+
 		x_u128 = x1_u128
 	}
 

@@ -7,6 +7,7 @@ import (
 	"encoding"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"math/bits"
@@ -20,9 +21,7 @@ const (
 	// that can be safely stored in a uint64.
 	maxDigitU64 = 19
 
-	// maxDecimalStringU128 is the maximum length of a decimal string
-	// that can be safely stored in a u128. (including decimal point, sign and quotes)
-	// 43 bytes = max(u128) + 2 (for quotes) + 1 (for sign) + 1 (for dot)
+	// 43 bytes = max(u128) + 2 (for quotes) + 1 (for sign) + 1 (for dot).
 	maxDecimalStringU128 = 43
 )
 
@@ -80,10 +79,11 @@ func (d Decimal) StringFixed(prec uint8) string {
 func (d Decimal) stringBigInt(trimTrailingZeros bool) string {
 	str := d.coef.bigInt.String()
 	dExpInt := int(d.prec)
+
 	if dExpInt > len(str) {
 		// pad with zeros
 		l := len(str)
-		for i := 0; i < dExpInt-l; i++ {
+		for range dExpInt - l {
 			str = "0" + str
 		}
 	}
@@ -99,6 +99,7 @@ func (d Decimal) stringBigInt(trimTrailingZeros bool) string {
 				break
 			}
 		}
+
 		fractionalPart = fractionalPart[:i+1]
 	}
 
@@ -132,14 +133,14 @@ func (d Decimal) stringU128(trimTrailingZeros bool, withQuote bool) string {
 	// So, trying to optimize the total bytes allocated by pre-defining the capacity is not worth it
 	// cuz the compiler optimizes it differently. My assumption is 16-byte alignment optimization in the compiler.
 	// However, I haven't found where this behavior is documented, just discovered it by testing.
-
 	buf := make([]byte, 0, maxDecimalStringU128)
 	buf = d.appendBuffer(buf, trimTrailingZeros, withQuote)
+
 	return string(buf)
 }
 
 var (
-	// lookup table for 00 -> 99
+	// lookup table for 00 -> 99.
 	table = [200]byte{
 		0x30, 0x30, 0x30, 0x31, 0x30, 0x32, 0x30, 0x33, 0x30, 0x34, 0x30, 0x35,
 		0x30, 0x36, 0x30, 0x37, 0x30, 0x38, 0x30, 0x39, 0x31, 0x30, 0x31, 0x31,
@@ -333,6 +334,7 @@ func (d Decimal) AppendText(b []byte) ([]byte, error) {
 // UnmarshalText implements the [encoding.TextUnmarshaler] interface.
 func (d *Decimal) UnmarshalText(data []byte) error {
 	var err error
+
 	*d, err = parseBytes(data)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling to Decimal: %w", err)
@@ -450,6 +452,7 @@ func (d *Decimal) unmarshalBinaryU128(data []byte) error {
 	}
 
 	var coef uint128.Uint128
+
 	switch totalBytes {
 	case 11:
 		coef = uint128.NewFromUint64(binary.BigEndian.Uint64(data[3:]))
@@ -462,6 +465,7 @@ func (d *Decimal) unmarshalBinaryU128(data []byte) error {
 	}
 
 	d.coef.u128 = coef
+
 	return nil
 }
 
@@ -475,6 +479,7 @@ func (d *Decimal) unmarshalBinaryBigInt(data []byte) error {
 	}
 
 	d.coef.bigInt = new(big.Int).SetBytes(data[3:totalBytes])
+
 	return nil
 }
 
@@ -499,7 +504,7 @@ func (d *Decimal) Scan(src any) error {
 	case float64:
 		*d, err = NewFromFloat64(v)
 	case nil:
-		err = fmt.Errorf("can't scan nil to Decimal")
+		err = errors.New("can't scan nil to Decimal")
 	default:
 		err = fmt.Errorf("can't scan %T to Decimal: %T is not supported", src, src)
 	}
@@ -526,6 +531,7 @@ type NullDecimal struct {
 func (d *NullDecimal) Scan(src any) error {
 	if src == nil {
 		d.Decimal, d.Valid = Decimal{}, false
+
 		return nil
 	}
 
@@ -550,6 +556,7 @@ func (d *NullDecimal) Scan(src any) error {
 	}
 
 	d.Valid = err == nil
+
 	return err
 }
 
@@ -564,8 +571,7 @@ func (d NullDecimal) Value() (driver.Value, error) {
 	return d.Decimal.String(), nil
 }
 
-// getTrailingZeros64 returns the number of trailing zeros in u
-// NOTE: this only works when maxPrec is 19
+// NOTE: this only works when maxPrec is 19.
 func getTrailingZeros64(u uint64) uint8 {
 	var zeros uint8
 

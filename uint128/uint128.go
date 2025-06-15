@@ -149,9 +149,11 @@ func (u Uint128) Bit(i uint) uint64 {
 	if i >= 128 {
 		return 0
 	}
+
 	if i >= 64 {
 		return (u.hi >> (i - 64)) & 1
 	}
+
 	return (u.lo >> i) & 1
 }
 
@@ -160,9 +162,11 @@ func (u Uint128) SetBit(i uint) Uint128 {
 	if i >= 128 {
 		return u
 	}
+
 	if i >= 64 {
 		return Uint128{u.lo, u.hi | (1 << (i - 64))}
 	}
+
 	return Uint128{u.lo | (1 << i), u.hi}
 }
 
@@ -170,9 +174,11 @@ func (u Uint128) SetBit(i uint) Uint128 {
 func (u Uint128) Add(v Uint128) (Uint128, error) {
 	lo, carry := bits.Add64(u.lo, v.lo, 0)
 	hi, carry := bits.Add64(u.hi, v.hi, carry)
+
 	if carry != 0 {
 		return Uint128{}, ErrOverflow
 	}
+
 	return Uint128{lo, hi}, nil
 }
 
@@ -182,6 +188,7 @@ func (u Uint128) MustAdd(v Uint128) Uint128 {
 	if err != nil {
 		panic(err)
 	}
+
 	return u
 }
 
@@ -190,6 +197,7 @@ func (u Uint128) MustAdd(v Uint128) Uint128 {
 func (u Uint128) AddWrap(v Uint128) Uint128 {
 	lo, carry := bits.Add64(u.lo, v.lo, 0)
 	hi, _ := bits.Add64(u.hi, v.hi, carry)
+
 	return Uint128{lo, hi}
 }
 
@@ -197,9 +205,11 @@ func (u Uint128) AddWrap(v Uint128) Uint128 {
 func (u Uint128) Add64(v uint64) (Uint128, error) {
 	lo, carry := bits.Add64(u.lo, v, 0)
 	hi, carry := bits.Add64(u.hi, 0, carry)
+
 	if carry != 0 {
 		return Uint128{}, ErrOverflow
 	}
+
 	return Uint128{lo, hi}, nil
 }
 
@@ -209,6 +219,7 @@ func (u Uint128) MustAdd64(v uint64) Uint128 {
 	if err != nil {
 		panic(err)
 	}
+
 	return u
 }
 
@@ -217,6 +228,7 @@ func (u Uint128) MustAdd64(v uint64) Uint128 {
 func (u Uint128) AddWrap64(v uint64) Uint128 {
 	lo, carry := bits.Add64(u.lo, v, 0)
 	hi := u.hi + carry
+
 	return Uint128{lo, hi}
 }
 
@@ -226,6 +238,7 @@ func (u Uint128) AddCarry(v Uint128, carryIn uint64) (sum Uint128, carryOut uint
 	var c0 uint64
 	sum.lo, c0 = bits.Add64(u.lo, v.lo, carryIn)
 	sum.hi, carryOut = bits.Add64(u.hi, v.hi, c0)
+
 	return
 }
 
@@ -233,9 +246,11 @@ func (u Uint128) AddCarry(v Uint128, carryIn uint64) (sum Uint128, carryOut uint
 func (u Uint128) Sub(v Uint128) (Uint128, error) {
 	lo, borrow := bits.Sub64(u.lo, v.lo, 0)
 	hi, borrow := bits.Sub64(u.hi, v.hi, borrow)
+
 	if borrow != 0 {
 		return Uint128{}, ErrUnderflow
 	}
+
 	return Uint128{lo, hi}, nil
 }
 
@@ -245,6 +260,7 @@ func (u Uint128) MustSub(v Uint128) Uint128 {
 	if err != nil {
 		panic(err)
 	}
+
 	return u
 }
 
@@ -253,6 +269,7 @@ func (u Uint128) MustSub(v Uint128) Uint128 {
 func (u Uint128) SubWrap(v Uint128) Uint128 {
 	lo, borrow := bits.Sub64(u.lo, v.lo, 0)
 	hi, _ := bits.Sub64(u.hi, v.hi, borrow)
+
 	return Uint128{lo, hi}
 }
 
@@ -260,9 +277,11 @@ func (u Uint128) SubWrap(v Uint128) Uint128 {
 func (u Uint128) Sub64(v uint64) (Uint128, error) {
 	lo, borrow := bits.Sub64(u.lo, v, 0)
 	hi, borrow := bits.Sub64(u.hi, 0, borrow)
+
 	if borrow != 0 {
 		return Uint128{}, ErrUnderflow
 	}
+
 	return Uint128{lo, hi}, nil
 }
 
@@ -272,6 +291,7 @@ func (u Uint128) MustSub64(v uint64) Uint128 {
 	if err != nil {
 		panic(err)
 	}
+
 	return u
 }
 
@@ -280,6 +300,7 @@ func (u Uint128) MustSub64(v uint64) Uint128 {
 func (u Uint128) SubWrap64(v uint64) Uint128 {
 	lo, borrow := bits.Sub64(u.lo, v, 0)
 	hi := u.hi - borrow
+
 	return Uint128{lo, hi}
 }
 
@@ -289,6 +310,7 @@ func (u Uint128) SubBorrow(v Uint128, borrowIn uint64) (diff Uint128, borrowOut 
 	var b0 uint64
 	diff.lo, b0 = bits.Sub64(u.lo, v.lo, borrowIn)
 	diff.hi, borrowOut = bits.Sub64(u.hi, v.hi, b0)
+
 	return
 }
 
@@ -299,9 +321,11 @@ func (u Uint128) Mul(v Uint128) (Uint128, error) {
 	p2, p3 := bits.Mul64(u.lo, v.hi)
 	hi, c0 := bits.Add64(hi, p1, 0)
 	hi, c1 := bits.Add64(hi, p3, c0)
+
 	if (u.hi != 0 && v.hi != 0) || p0 != 0 || p2 != 0 || c1 != 0 {
 		return Uint128{}, ErrOverflow
 	}
+
 	return Uint128{lo, hi}, nil
 }
 
@@ -311,6 +335,7 @@ func (u Uint128) MustMul(v Uint128) Uint128 {
 	if err != nil {
 		panic(err)
 	}
+
 	return u
 }
 
@@ -319,17 +344,15 @@ func (u Uint128) MustMul(v Uint128) Uint128 {
 func (u Uint128) MulWrap(v Uint128) Uint128 {
 	hi, lo := bits.Mul64(u.lo, v.lo)
 	hi += u.hi*v.lo + u.lo*v.hi
+
 	return Uint128{lo, hi}
 }
 
-// MulFull multiplies u by v and returns the 256-bit product as two Uint128 values:
-// hiProduct (most significant 128 bits) and loProduct (least significant 128 bits).
-// u * v = hiProduct * 2^128 + loProduct
+// u * v = hiProduct * 2^128 + loProduct.
 func (u Uint128) MulFull(v Uint128) (hiProduct, loProduct Uint128) {
 	// Let u = u_h * 2^64 + u_l  (u_h = u.hi, u_l = u.lo)
 	// Let v = v_h * 2^64 + v_l  (v_h = v.hi, v_l = v.lo)
 	// u * v = (u_h*v_h)*2^128 + (u_h*v_l + u_l*v_h)*2^64 + (u_l*v_l)
-
 	// Calculate u_l * v_l
 	// (product_low_high, product_low_low)
 	ulvl_h, ulvl_l := bits.Mul64(u.lo, v.lo) // r0 = ulvl_l, carry_to_r1_from_ulvl = ulvl_h
@@ -368,7 +391,8 @@ func (u Uint128) MulFull(v Uint128) (hiProduct, loProduct Uint128) {
 	r3 := uhvh_h + carry_to_r3_from_r2_part1 + carry_to_r3_from_r2_part2 + carry_to_r3_from_r2_final
 
 	hiProduct = Uint128{lo: r2_final, hi: r3}
-	return
+
+	return hiProduct, loProduct
 }
 
 // Mul64 returns u*v, panicking on overflow.
@@ -376,9 +400,11 @@ func (u Uint128) Mul64(v uint64) (Uint128, error) {
 	hi, lo := bits.Mul64(u.lo, v)
 	p0, p1 := bits.Mul64(u.hi, v)
 	hi, c0 := bits.Add64(hi, p1, 0)
+
 	if p0 != 0 || c0 != 0 {
 		return Uint128{}, ErrOverflow
 	}
+
 	return Uint128{lo, hi}, nil
 }
 
@@ -388,6 +414,7 @@ func (u Uint128) MustMul64(v uint64) Uint128 {
 	if err != nil {
 		panic(err)
 	}
+
 	return u
 }
 
@@ -396,12 +423,14 @@ func (u Uint128) MustMul64(v uint64) Uint128 {
 func (u Uint128) MulWrap64(v uint64) Uint128 {
 	hi, lo := bits.Mul64(u.lo, v)
 	hi += u.hi * v
+
 	return Uint128{lo, hi}
 }
 
 // Div returns u/v.
 func (u Uint128) Div(v Uint128) (Uint128, error) {
 	q, _, err := u.QuoRem(v)
+
 	return q, err
 }
 
@@ -411,12 +440,14 @@ func (u Uint128) MustDiv(v Uint128) Uint128 {
 	if err != nil {
 		panic(err)
 	}
+
 	return u
 }
 
 // Div64 returns u/v.
 func (u Uint128) Div64(v uint64) Uint128 {
 	q, _ := u.QuoRem64(v)
+
 	return q
 }
 
@@ -434,9 +465,11 @@ func (u Uint128) QuoRem(v Uint128) (q, r Uint128, err error) {
 		u1 := u.Rsh(1)
 		tq, _ := bits.Div64(u1.hi, u1.lo, v1.hi)
 		tq >>= 63 - n
+
 		if tq != 0 {
 			tq--
 		}
+
 		q = NewFromUint64(tq)
 		// calculate remainder using trial quotient, then adjust if remainder is
 		// greater than divisor
@@ -444,22 +477,26 @@ func (u Uint128) QuoRem(v Uint128) (q, r Uint128, err error) {
 		if err != nil {
 			return q, r, err
 		}
+
 		r, err = u.Sub(vq)
 		if err != nil {
 			return q, r, err
 		}
+
 		if r.Cmp(v) >= 0 {
 			q, err = q.Add64(1)
 			if err != nil {
 				return q, r, err
 			}
+
 			r, err = r.Sub(v)
 			if err != nil {
 				return q, r, err
 			}
 		}
 	}
-	return
+
+	return q, r, err
 }
 
 // MustQuoRem returns q = u/v and r = u%v, panicking on overflow.
@@ -468,6 +505,7 @@ func (u Uint128) MustQuoRem(v Uint128) (q, r Uint128) {
 	if err != nil {
 		panic(err)
 	}
+
 	return q, r
 }
 
@@ -479,12 +517,14 @@ func (u Uint128) QuoRem64(v uint64) (q Uint128, r uint64) {
 		q.hi, r = bits.Div64(0, u.hi, v)
 		q.lo, r = bits.Div64(r, u.lo, v)
 	}
+
 	return
 }
 
 // Mod returns r = u%v.
 func (u Uint128) Mod(v Uint128) (r Uint128, err error) {
 	_, r, err = u.QuoRem(v)
+
 	return
 }
 
@@ -494,12 +534,14 @@ func (u Uint128) MustMod(v Uint128) Uint128 {
 	if err != nil {
 		panic(err)
 	}
+
 	return u
 }
 
 // Mod64 returns r = u%v.
 func (u Uint128) Mod64(v uint64) (r uint64) {
 	_, r = u.QuoRem64(v)
+
 	return
 }
 
@@ -512,6 +554,7 @@ func (u Uint128) Lsh(n uint) (s Uint128) {
 		s.lo = u.lo << n
 		s.hi = u.hi<<n | u.lo>>(64-n)
 	}
+
 	return
 }
 
@@ -524,6 +567,7 @@ func (u Uint128) Rsh(n uint) (s Uint128) {
 		s.lo = u.lo>>n | u.hi<<(64-n)
 		s.hi = u.hi >> n
 	}
+
 	return
 }
 
@@ -533,6 +577,7 @@ func (u Uint128) LeadingZeros() int {
 	if u.hi > 0 {
 		return bits.LeadingZeros64(u.hi)
 	}
+
 	return 64 + bits.LeadingZeros64(u.lo)
 }
 
@@ -542,6 +587,7 @@ func (u Uint128) TrailingZeros() int {
 	if u.lo > 0 {
 		return bits.TrailingZeros64(u.lo)
 	}
+
 	return 64 + bits.TrailingZeros64(u.hi)
 }
 
@@ -556,6 +602,7 @@ func (u Uint128) BitLen() int {
 	if u.hi != 0 {
 		return 64 + bits.Len64(u.hi)
 	}
+
 	return bits.Len64(u.lo)
 }
 
@@ -563,6 +610,7 @@ func (u Uint128) BitLen() int {
 func (u Uint128) RotateLeft(k int) Uint128 {
 	const n = 128
 	s := uint(k) & (n - 1)
+
 	return u.Lsh(s).Or(u.Rsh(n - s))
 }
 
@@ -592,17 +640,23 @@ func (u Uint128) String() string {
 	if u.IsZero() {
 		return "0"
 	}
+
 	buf := []byte("0000000000000000000000000000000000000000") // log10(2^128) < 40
+
 	for i := len(buf); ; i -= 19 {
 		q, r := u.QuoRem64(1e19) // largest power of 10 that fits in a uint64
+
 		var n int
+
 		for ; r != 0; r /= 10 {
 			n++
 			buf[i-n] += byte(r % 10)
 		}
+
 		if q.IsZero() {
 			return string(buf[i-n:])
 		}
+
 		u = q
 	}
 }
@@ -623,6 +677,7 @@ func (u Uint128) PutBytesBE(b []byte) {
 func (u Uint128) AppendBytes(b []byte) []byte {
 	b = binary.LittleEndian.AppendUint64(b, u.lo)
 	b = binary.LittleEndian.AppendUint64(b, u.hi)
+
 	return b
 }
 
@@ -630,6 +685,7 @@ func (u Uint128) AppendBytes(b []byte) []byte {
 func (u Uint128) AppendBytesBE(b []byte) []byte {
 	b = binary.BigEndian.AppendUint64(b, u.hi)
 	b = binary.BigEndian.AppendUint64(b, u.lo)
+
 	return b
 }
 
@@ -638,6 +694,7 @@ func (u Uint128) Big() *big.Int {
 	i := new(big.Int).SetUint64(u.hi)
 	i = i.Lsh(i, 64)
 	i = i.Xor(i, new(big.Int).SetUint64(u.lo))
+
 	return i
 }
 
@@ -651,8 +708,10 @@ func (u *Uint128) Scan(s fmt.ScanState, ch rune) error {
 	} else if i.BitLen() > 128 {
 		return ErrValueOverflow
 	}
+
 	u.lo = i.Uint64()
 	u.hi = i.Rsh(i, 64).Uint64()
+
 	return nil
 }
 
@@ -690,6 +749,7 @@ func NewFromBigInt(i *big.Int) (Uint128, error) {
 	} else if i.BitLen() > 128 {
 		return Uint128{}, ErrValueOverflow
 	}
+
 	return Uint128{
 		lo: i.Uint64(),
 		hi: i.Rsh(i, 64).Uint64(),
@@ -700,6 +760,7 @@ func NewFromBigInt(i *big.Int) (Uint128, error) {
 func Parse(s string) (Uint128, error) {
 	u := Uint128{}
 	_, err := fmt.Sscan(s, &u)
+
 	return u, err
 }
 
@@ -711,5 +772,6 @@ func (u Uint128) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (u *Uint128) UnmarshalText(b []byte) error {
 	_, err := fmt.Sscan(string(b), u)
+
 	return err
 }

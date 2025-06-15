@@ -50,6 +50,7 @@ func ssDecimal(neg bool, hi, lo uint64, prec uint8) ss.Decimal {
 	}
 
 	d := ss.NewFromBigInt(bint, -int32(prec))
+
 	return d
 }
 
@@ -304,6 +305,7 @@ func FuzzDivDec(f *testing.F) {
 		c, err := a.Div(b)
 		if b.IsZero() {
 			require.Equal(t, ErrDivideByZero, err)
+
 			return
 		}
 
@@ -351,6 +353,7 @@ func FuzzDiv64(f *testing.F) {
 		c, err := a.Div64(blo)
 		if blo == 0 {
 			require.Equal(t, ErrDivideByZero, err)
+
 			return
 		}
 
@@ -402,6 +405,7 @@ func FuzzQuoRem(f *testing.F) {
 
 		if b.IsZero() {
 			require.Equal(t, ErrDivideByZero, err)
+
 			return
 		}
 
@@ -665,12 +669,14 @@ func FuzzPowToIntPart(f *testing.F) {
 		c, err := a.PowToIntPart(b)
 		if a.IsZero() && b.IsNeg() {
 			require.Equal(t, ErrZeroPowNegative, err, "zero pow negative, %s %s", a, b)
+
 			return
 		}
 
 		d := b.Trunc(0)
 		if d.coef.overflow() || d.coef.u128.Cmp64(math.MaxInt32) > 0 {
 			require.Equal(t, ErrExponentTooLarge, err, "exponent too large, %s %s", a, b)
+
 			return
 		}
 
@@ -692,10 +698,12 @@ func FuzzPowToIntPart(f *testing.F) {
 		if a.IsZero() && d.IsZero() {
 			require.EqualError(t, err, "cannot represent undefined value of 0**0", "a = %s, b = %s", a, b)
 			require.Equal(t, "1", c.String())
+
 			return
 		}
 
 		require.NoError(t, err)
+
 		aa = aa.Truncate(int32(c.prec))
 
 		require.Equal(t, aa.String(), c.String(), "PowToIntPart %s %s", a, b)
@@ -721,6 +729,7 @@ func FuzzPowInt32(f *testing.F) {
 		c, err := a.PowInt32(int32(p))
 		if a.IsZero() && p < 0 {
 			require.Equal(t, ErrZeroPowNegative, err)
+
 			return
 		}
 
@@ -741,10 +750,12 @@ func FuzzPowInt32(f *testing.F) {
 		if a.IsZero() && p == 0 {
 			require.EqualError(t, err, "cannot represent undefined value of 0**0")
 			require.Equal(t, "1", c.String())
+
 			return
 		}
 
 		require.NoError(t, err)
+
 		aa = aa.Truncate(int32(c.prec))
 
 		require.Equal(t, aa.String(), c.String(), "powInt %s %d", a, p)
@@ -774,6 +785,7 @@ func FuzzPowNegative(f *testing.F) {
 
 		if a.IsZero() {
 			require.Equal(t, "0", c.String())
+
 			return
 		}
 
@@ -820,6 +832,7 @@ func FuzzMarshalJSON(f *testing.F) {
 		require.NoError(t, err)
 
 		var e Decimal
+
 		require.NoError(t, e.UnmarshalJSON(data))
 
 		require.Equal(t, c.String(), e.String())
@@ -855,6 +868,7 @@ func FuzzMarshalBinary(f *testing.F) {
 		require.NoError(t, err)
 
 		var e Decimal
+
 		require.NoError(t, e.UnmarshalBinary(data))
 
 		require.Equal(t, c.String(), e.String())

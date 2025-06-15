@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -81,6 +82,7 @@ func TestMarshalText(t *testing.T) {
 			require.NoError(t, err)
 
 			var c Decimal
+
 			require.NoError(t, c.UnmarshalText(b))
 
 			require.Equal(t, a, c)
@@ -109,6 +111,7 @@ func TestUnmarshalText(t *testing.T) {
 			if tc.wantErr != "" {
 				require.EqualError(t, err, tc.wantErr)
 				require.ErrorIs(t, err, tc.wantErrType)
+
 				return
 			}
 
@@ -146,10 +149,11 @@ func TestMarshalJSON(t *testing.T) {
 			b, err := json.Marshal(a)
 			require.NoError(t, err)
 
-			require.Equal(t, fmt.Sprintf(`{"a":"%s"}`, tc.in), string(b))
+			require.JSONEq(t, fmt.Sprintf(`{"a":"%s"}`, tc.in), string(b))
 
 			// unmarshal back
 			var c A
+
 			require.NoError(t, json.Unmarshal(b, &c))
 
 			require.Equal(t, a, c)
@@ -226,6 +230,7 @@ func TestMarshalBinary(t *testing.T) {
 			require.NoError(t, encoder.Encode(a))
 
 			var c A
+
 			decoder := gob.NewDecoder(&buffer)
 			require.NoError(t, decoder.Decode(&c))
 
@@ -240,11 +245,11 @@ func TestInvalidUnmarshalBinary(t *testing.T) {
 		data    []byte
 		wantErr error
 	}{
-		{"empty", []byte{}, fmt.Errorf("invalid binary data")},
-		{"invalid", []byte{0x01, 0x02, 0x03}, fmt.Errorf("invalid binary data")},
-		{"total len mismatched", []byte{0x01, 0x02, 0x01, 0x04, 0x05}, fmt.Errorf("invalid binary data")},
-		{"len is less than 3", []byte{0x01, 0x02}, fmt.Errorf("invalid binary data")},
-		{"len is less than 3, bigInt", []byte{0x11, 0x02, 0x01}, fmt.Errorf("invalid binary data")},
+		{"empty", []byte{}, errors.New("invalid binary data")},
+		{"invalid", []byte{0x01, 0x02, 0x03}, errors.New("invalid binary data")},
+		{"total len mismatched", []byte{0x01, 0x02, 0x01, 0x04, 0x05}, errors.New("invalid binary data")},
+		{"len is less than 3", []byte{0x01, 0x02}, errors.New("invalid binary data")},
+		{"len is less than 3, bigInt", []byte{0x11, 0x02, 0x01}, errors.New("invalid binary data")},
 	}
 
 	for _, tc := range testcases {
@@ -362,6 +367,7 @@ func TestAppendBinary(t *testing.T) {
 			require.Equal(t, tc.wantCap, cap(b))
 
 			var c Decimal
+
 			require.NoError(t, c.UnmarshalBinary(b))
 			require.Equal(t, d.String(), c.String())
 		})
@@ -387,16 +393,18 @@ func TestScan(t *testing.T) {
 		{[]byte("123456789.123456789"), MustParse("123456789.123456789"), nil},
 		{[]byte("-123456789.123456789"), MustParse("-123456789.123456789"), nil},
 		{"-12345678901234567890123456789.1234567890123456789", MustParse("-12345678901234567890123456789.1234567890123456789"), nil},
-		{nil, Decimal{}, fmt.Errorf("can't scan nil to Decimal")},
-		{byte('a'), Decimal{}, fmt.Errorf("can't scan uint8 to Decimal: uint8 is not supported")},
+		{nil, Decimal{}, errors.New("can't scan nil to Decimal")},
+		{byte('a'), Decimal{}, errors.New("can't scan uint8 to Decimal: uint8 is not supported")},
 	}
 
 	for _, tc := range testcases {
 		t.Run(fmt.Sprintf("%v", tc.in), func(t *testing.T) {
 			var d Decimal
+
 			err := d.Scan(tc.in)
 			if tc.wantErr != nil {
 				require.Equal(t, tc.wantErr, err)
+
 				return
 			}
 
@@ -432,15 +440,17 @@ func TestNullScan(t *testing.T) {
 		{[]byte("-123456789.123456789"), NullDecimal{Valid: true, Decimal: MustParse("-123456789.123456789")}, nil},
 		{"-12345678901234567890123456789.1234567890123456789", NullDecimal{Valid: true, Decimal: MustParse("-12345678901234567890123456789.1234567890123456789")}, nil},
 		{nil, NullDecimal{Valid: false}, nil},
-		{byte('a'), NullDecimal{Valid: false}, fmt.Errorf("can't scan uint8 to Decimal: uint8 is not supported")},
+		{byte('a'), NullDecimal{Valid: false}, errors.New("can't scan uint8 to Decimal: uint8 is not supported")},
 	}
 
 	for _, tc := range testcases {
 		t.Run(fmt.Sprintf("%v", tc.in), func(t *testing.T) {
 			var d NullDecimal
+
 			err := d.Scan(tc.in)
 			if tc.wantErr != nil {
 				require.Equal(t, tc.wantErr, err)
+
 				return
 			}
 
@@ -453,6 +463,7 @@ func TestNullScan(t *testing.T) {
 
 			if !d.Valid {
 				require.Nil(t, val)
+
 				return
 			}
 
@@ -473,6 +484,7 @@ func BenchmarkAppendText(b *testing.B) {
 	d := MustParse("123456.123456")
 
 	b.ResetTimer()
+
 	for range b.N {
 		a, _ = d.AppendText(a)
 	}
@@ -483,6 +495,7 @@ func BenchmarkAppendBinary(b *testing.B) {
 	d := MustParse("123456.123456")
 
 	b.ResetTimer()
+
 	for range b.N {
 		a, _ = d.AppendBinary(a)
 	}

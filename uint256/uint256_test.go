@@ -30,6 +30,7 @@ func fromBig(b *big.Int) Uint256 {
 		// This should not happen in tests if we construct big.Int correctly
 		panic(err)
 	}
+
 	return val
 }
 
@@ -58,6 +59,7 @@ func TestDiv(t *testing.T) {
 			if toBig(q).Cmp(expQ) != 0 {
 				t.Errorf("Quotient mismatch:\n got %v\nwant %v", q.String(), expQ.String())
 			}
+
 			if toBig(r).Cmp(expR) != 0 {
 				t.Errorf("Remainder mismatch:\n got %v\nwant %v", r.String(), expR.String())
 			}
@@ -73,9 +75,11 @@ func TestDiv(t *testing.T) {
 
 	t.Run("randomized", func(t *testing.T) {
 		rand.Seed(time.Now().UnixNano())
-		for i := 0; i < 1000; i++ {
+
+		for range 1000 {
 			uBytes := make([]byte, 32)
 			vBytes := make([]byte, 32)
+
 			rand.Read(uBytes)
 			rand.Read(vBytes)
 
@@ -99,6 +103,7 @@ func TestDiv(t *testing.T) {
 			if toBig(q).Cmp(expQ) != 0 {
 				t.Errorf("Quotient mismatch for u=%v, v=%v:\n got %v\nwant %v", bu, bv, q.String(), expQ.String())
 			}
+
 			if toBig(r).Cmp(expR) != 0 {
 				t.Errorf("Remainder mismatch for u=%v, v=%v:\n got %v\nwant %v", bu, bv, r.String(), expR.String())
 			}

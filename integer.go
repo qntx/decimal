@@ -119,7 +119,6 @@ func parseBint(s []byte) (bool, bint, uint8, error) {
 		if err != uint128.ErrOverflow {
 			return false, bint, 0, err
 		}
-
 		// overflow, try to parse into big.Int
 	}
 
@@ -167,6 +166,7 @@ func parseBint(s []byte) (bool, bint, uint8, error) {
 		return false, bint{}, 0, errInvalidFormat(s)
 	default:
 		prec = vLen - pIndex - 1
+
 		switch defaultParseMode {
 		case ParseModeError:
 			if prec > int(defaultPrec) {
@@ -182,6 +182,7 @@ func parseBint(s []byte) (bool, bint, uint8, error) {
 		}
 
 		b := strings.Builder{}
+
 		_, err := b.Write(value[:pIndex])
 		if err != nil {
 			return false, bint{}, 0, err
@@ -197,6 +198,7 @@ func parseBint(s []byte) (bool, bint, uint8, error) {
 	}
 
 	dValue := new(big.Int)
+
 	_, ok := dValue.SetString(intString, 10)
 	if !ok {
 		return false, bint{}, 0, errInvalidFormat(s)
@@ -266,7 +268,7 @@ func parseSmallToU128(s []byte) (uint128.Uint128, uint8, error) {
 		prec uint8
 	)
 
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] == '.' {
 			// return err if we encounter the '.' more than once
 			if prec != 0 {
@@ -306,6 +308,7 @@ func parseLargeToU128(s []byte) (uint128.Uint128, uint8, error) {
 	// find '.' position
 	l := len(s)
 	pos := bytes.IndexByte(s, '.')
+
 	if pos == 0 || pos == l-1 {
 		// prevent ".123" or "123."
 		return uint128.Zero, 0, ErrInvalidFormat
@@ -324,6 +327,7 @@ func parseLargeToU128(s []byte) (uint128.Uint128, uint8, error) {
 	// now 0 < pos < l-1
 	//nolint:gosec // l < maxStrLen, so 0 < l-pos-1 < 256, can be safely converted to uint8
 	prec := uint8(l - pos - 1)
+
 	switch defaultParseMode {
 	case ParseModeError:
 		if prec > defaultPrec {
@@ -368,7 +372,8 @@ func parseLargeToU128(s []byte) (uint128.Uint128, uint8, error) {
 func digitToU128(s []byte) (uint128.Uint128, error) {
 	if len(s) <= maxDigitU64 {
 		var u uint64
-		for i := 0; i < len(s); i++ {
+
+		for i := range len(s) {
 			if s[i] < '0' || s[i] > '9' {
 				return uint128.Zero, ErrInvalidFormat
 			}
@@ -385,7 +390,7 @@ func digitToU128(s []byte) (uint128.Uint128, error) {
 		err error
 	)
 
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] < '0' || s[i] > '9' {
 			return uint128.Zero, ErrInvalidFormat
 		}
@@ -404,7 +409,7 @@ func digitToU128(s []byte) (uint128.Uint128, error) {
 	return u, nil
 }
 
-// GT returns true if u > v
+// GT returns true if u > v.
 func (u bint) GT(v bint) bool {
 	return u.Cmp(v) == 1
 }
@@ -415,7 +420,6 @@ func (u bint) Add(v bint) bint {
 		if err == nil {
 			return bint{u128: c}
 		}
-
 		// overflow, fallback to big.Int
 	}
 
