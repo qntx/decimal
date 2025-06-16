@@ -122,7 +122,7 @@ func BenchmarkDivision(b *testing.B) {
 		}
 	})
 	b.Run("big.Int 128/64", func(b *testing.B) {
-		xb, yb := x128.Big(), y64.Big()
+		xb, yb := x128.BigInt(), y64.BigInt()
 		q := new(big.Int)
 
 		for range b.N {
@@ -130,7 +130,7 @@ func BenchmarkDivision(b *testing.B) {
 		}
 	})
 	b.Run("big.Int 128/128", func(b *testing.B) {
-		xb, yb := x128.Big(), y128.Big()
+		xb, yb := x128.BigInt(), y128.BigInt()
 		q := new(big.Int)
 
 		for range b.N {
@@ -146,7 +146,7 @@ func BenchmarkString(b *testing.B) {
 		binary.LittleEndian.Uint64(buf[:8]),
 		binary.LittleEndian.Uint64(buf[8:]),
 	)
-	xb := x.Big()
+	xb := x.BigInt()
 
 	b.Run("Uint128", func(b *testing.B) {
 		b.ReportAllocs()

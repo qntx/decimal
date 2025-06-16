@@ -1,6 +1,6 @@
 # Decimal
 
-Go decimal.
+Package decimal implements correctly rounded decimal floating-point numbers for Go. This package is designed specifically for use in transactional financial systems.
 
 ## License
 
